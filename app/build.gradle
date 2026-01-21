@@ -42,6 +42,12 @@ dependencies {
     
     // 添加OkHttp依赖，用于WebSocket通信
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    
+    // E2E测试依赖
+    androidTestImplementation 'androidx.test.espresso:espresso-intents:3.5.1'
+    androidTestImplementation 'androidx.test:rules:1.5.0'
+    androidTestImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
+    androidTestImplementation 'androidx.test.uiautomator:uiautomator:2.3.0'
 }
 
 // 构建期检查任务：确保官方Profile不使用Experimental API或host.访问

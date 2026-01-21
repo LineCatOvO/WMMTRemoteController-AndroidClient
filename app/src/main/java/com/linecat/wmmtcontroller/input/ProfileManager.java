@@ -523,7 +523,7 @@ public class ProfileManager {
     
     /**
      * 获取当前配置文件
-     * @return 当前配置文件
+     * @return 当前配置文件，null表示未加载配置文件
      */
     public ScriptProfile getCurrentProfile() {
         return currentProfile.get();
@@ -644,5 +644,36 @@ public class ProfileManager {
         currentProfile.set(null);
         
         Log.d(TAG, "Current profile unloaded successfully");
+    }
+    
+    /**
+     * 加载并设置指定ID的配置文件
+     * 从availableProfiles列表中查找并切换到指定ID的配置文件
+     * 
+     * @param profileId 配置文件ID
+     * @return 是否加载并设置成功
+     */
+    public boolean loadAndSetProfile(String profileId) {
+        if (profileId == null || profileId.isEmpty()) {
+            Log.e(TAG, "Profile ID cannot be empty");
+            return false;
+        }
+        
+        // 查找指定ID的配置文件
+        ScriptProfile profile = null;
+        for (ScriptProfile p : availableProfiles) {
+            if (p.getId() != null && p.getId().equals(profileId)) {
+                profile = p;
+                break;
+            }
+        }
+        
+        if (profile == null) {
+            Log.e(TAG, "Profile not found: " + profileId);
+            return false;
+        }
+        
+        // 切换到找到的配置文件
+        return switchProfile(profile);
     }
 }

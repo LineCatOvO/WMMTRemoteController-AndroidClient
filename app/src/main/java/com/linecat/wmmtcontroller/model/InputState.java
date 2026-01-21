@@ -9,6 +9,8 @@ import java.util.List;
  * 用于发送到服务端的最终输入状态
  */
 public class InputState {
+    private long frameId;
+    private String runtimeStatus;
     private List<String> keyboard;
     private MouseState mouse;
     private JoystickState joystick;
@@ -16,6 +18,8 @@ public class InputState {
 
     // 构造函数
     public InputState() {
+        this.frameId = 0;
+        this.runtimeStatus = "ok";
         this.keyboard = new ArrayList<>();
         this.mouse = new MouseState();
         this.joystick = new JoystickState();
@@ -23,6 +27,22 @@ public class InputState {
     }
 
     // getter和setter
+    public long getFrameId() {
+        return frameId;
+    }
+
+    public void setFrameId(long frameId) {
+        this.frameId = frameId;
+    }
+
+    public String getRuntimeStatus() {
+        return runtimeStatus;
+    }
+
+    public void setRuntimeStatus(String runtimeStatus) {
+        this.runtimeStatus = runtimeStatus;
+    }
+
     public List<String> getKeyboard() {
         return keyboard;
     }
@@ -207,7 +227,9 @@ public class InputState {
     @Override
     public String toString() {
         return "InputState{" +
-                "keyboard=" + keyboard +
+                "frameId=" + frameId +
+                ", runtimeStatus='" + runtimeStatus + '\'' +
+                ", keyboard=" + keyboard +
                 ", mouse=" + mouse +
                 ", joystick=" + joystick +
                 ", gyroscope=" + gyroscope +

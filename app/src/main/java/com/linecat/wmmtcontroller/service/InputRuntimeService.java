@@ -32,6 +32,7 @@ public class InputRuntimeService extends Service {
     private static final int NOTIFICATION_ID = 1;
     
     // 运行时组件
+    private RuntimeConfig runtimeConfig;
     private ProfileManager profileManager;
     private InputScriptEngine scriptEngine;
     private InputCollector inputCollector;
@@ -40,6 +41,8 @@ public class InputRuntimeService extends Service {
     // 运行状态
     private boolean isRunning = false;
     private Thread mainLoopThread;
+    // Frame ID 计数器，用于生成单调递增的帧ID
+    private long frameIdCounter = 1;
     
     @Override
     public void onCreate() {
@@ -63,6 +66,10 @@ public class InputRuntimeService extends Service {
         // 启动主循环
         if (!isRunning) {
             startMainLoop();
+            
+            // 发送运行时启动广播
+            Intent broadcastIntent = new Intent(RuntimeEvents.ACTION_RUNTIME_STARTED);
+            sendBroadcast(broadcastIntent);
         }
         
         return START_STICKY;
@@ -129,6 +136,9 @@ public class InputRuntimeService extends Service {
      * 初始化组件
      */
     private void initializeComponents() {
+        // 创建运行时配置
+        runtimeConfig = new RuntimeConfig(this);
+        
         // 创建脚本引擎
         scriptEngine = new JsInputScriptEngine(this);
         
@@ -138,12 +148,29 @@ public class InputRuntimeService extends Service {
         // 创建输入采集器
         inputCollector = new InputCollector();
         
-        // 创建WebSocket客户端
-        webSocketClient = new WebSocketClient();
+        // 创建WebSocket客户端，使用配置的URL
+        webSocketClient = new WebSocketClient(this, runtimeConfig.getWebSocketUrl());
         
         // 初始化各组件
         scriptEngine.init();
         profileManager.loadAvailableProfiles();
+        
+        // 加载配置的Profile
+        String profileId = runtimeConfig.getProfileId();
+        if (profileId != null) {
+            boolean loadSuccess = profileManager.loadAndSetProfile(profileId);
+            if (loadSuccess) {
+                // 发送配置文件加载成功广播
+                Intent intent = new Intent(RuntimeEvents.ACTION_PROFILE_LOADED);
+                intent.putExtra(RuntimeEvents.EXTRA_PROFILE_ID, profileId);
+                sendBroadcast(intent);
+            }
+        }
+        
+        // 发送脚本引擎准备就绪广播
+        Intent engineReadyIntent = new Intent(RuntimeEvents.ACTION_SCRIPT_ENGINE_READY);
+        sendBroadcast(engineReadyIntent);
+        
         inputCollector.init(this);
         webSocketClient.init();
     }
@@ -189,10 +216,25 @@ public class InputRuntimeService extends Service {
                     
                     // 3. 处理自动回滚
                     if (!updateSuccess) {
-                        profileManager.autoRollback();
+                        // 发送运行时错误广播
+                        Intent errorIntent = new Intent(RuntimeEvents.ACTION_RUNTIME_ERROR);
+                        errorIntent.putExtra(RuntimeEvents.EXTRA_ERROR_TYPE, RuntimeEvents.ERROR_TYPE_RUNTIME_ERROR);
+                        sendBroadcast(errorIntent);
+                        
+                        boolean rollbackSuccess = profileManager.autoRollback();
+                        if (rollbackSuccess) {
+                            // 发送配置文件回滚成功广播
+                            Intent rollbackIntent = new Intent(RuntimeEvents.ACTION_PROFILE_ROLLBACK);
+                            sendBroadcast(rollbackIntent);
+                        }
                     }
                     
-                    // 4. 发送输入状态到WebSocket
+                    // 4. 设置单调递增的 frameId
+                    inputState.setFrameId(frameIdCounter);
+                    // 递增 frameId，确保下次生成更大的值
+                    frameIdCounter++;
+                    
+                    // 5. 发送输入状态到WebSocket
                     webSocketClient.sendInputState(inputState);
                     
                     // 5. 等待下一帧

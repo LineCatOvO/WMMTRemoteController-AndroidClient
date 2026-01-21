@@ -1,0 +1,30 @@
+{
+  "name": "wmmt_gamepad_standard",
+  "version": "1.0.0",
+  "author": "LineCat Team",
+  "description": "标准游戏手柄配置，使用摇杆控制转向和油门",
+  "engineApiVersion": "1.0.0",
+  "entry": "main.js",
+  "compatibility": {
+    "supportedGamepads": ["default"],
+    "minimumAndroidVersion": "8.0"
+  },
+  "dependencies": [],
+  "config": {
+    "steering": {
+      "axis": "LX",
+      "sensitivity": 1.0,
+      "deadzone": 0.15
+    },
+    "throttle": {
+      "axis": "LY",
+      "sensitivity": 1.0,
+      "deadzone": 0.15
+    },
+    "buttons": {
+      "brake": "A",
+      "boost": "B",
+      "drift": "X"
+    }
+  }
+}

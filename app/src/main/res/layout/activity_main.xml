@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    tools:context=".MainActivity">
+
+    <TextView
+        android:id="@+id/title_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="WMMT 远程控制器"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_marginBottom="16dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="16dp">
+
+        <TextView
+            android:id="@+id/connection_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="连接状态: 未连接"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginEnd="16dp" />
+
+        <Button
+            android:id="@+id/reconnect_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="重新连接"
+            android:onClick="onReconnectClick" />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@android:color/background_light"
+        android:padding="16dp"
+        android:layout_marginBottom="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="陀螺仪数据"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:id="@+id/gyro_data"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Pitch: 0.00\nRoll: 0.00\nYaw: 0.00"
+                android:textSize="16sp"
+                android:layout_marginBottom="16dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="输入状态"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:id="@+id/input_state"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="键盘按键: []\n鼠标状态: X=0.00, Y=0.00, Left=false\n陀螺仪: Pitch=0.00, Roll=0.00"
+                android:textSize="16sp" />
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- 控制按钮区域 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp">
+
+        <!-- 加速按钮 -->
+        <Button
+            android:id="@+id/accelerate_button"
+            android:layout_width="0dp"
+            android:layout_height="80dp"
+            android:layout_weight="1"
+            android:text="加速"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:background="@android:color/holo_green_light"
+            android:layout_marginEnd="8dp"
+            android:onClick="onAccelerateClick" />
+
+        <!-- 刹车按钮 -->
+        <Button
+            android:id="@+id/brake_button"
+            android:layout_width="0dp"
+            android:layout_height="80dp"
+            android:layout_weight="1"
+            android:text="刹车"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:background="@android:color/holo_red_light"
+            android:layout_marginStart="8dp"
+            android:onClick="onBrakeClick" />
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="使用说明: 倾斜手机控制方向，点击按钮控制油门和刹车"
+        android:textSize="14sp"
+        android:gravity="center"
+        android:textColor="@android:color/darker_gray" />
+</LinearLayout>

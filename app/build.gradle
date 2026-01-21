@@ -1,0 +1,81 @@
+plugins {
+    alias(libs.plugins.android.application)
+}
+
+android {
+    namespace 'com.linecat.wmmtcontroller'
+    compileSdk {
+        version = release(36)
+    }
+
+    defaultConfig {
+        applicationId "com.linecat.wmmtcontroller"
+        minSdk 28
+        targetSdk 36
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+}
+
+dependencies {
+    implementation libs.appcompat
+    implementation libs.material
+    testImplementation libs.junit
+    androidTestImplementation libs.ext.junit
+    androidTestImplementation libs.espresso.core
+    
+    // 添加Gson依赖，用于JSON序列化/反序列化
+    implementation 'com.google.code.gson:gson:2.10.1'
+    
+    // 添加OkHttp依赖，用于WebSocket通信
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+}
+
+// 构建期检查任务：确保官方Profile不使用Experimental API或host.访问
+task checkOfficialProfiles {
+    group 'Verification'
+    description 'Checks that official profiles do not use Experimental API or host. access'
+    
+    doLast {
+        def profilesDir = file('src/main/assets/official-profiles')
+        def experimentalAPIs = ['setMousePosition', 'setMouseButton', 'getGyro', 'getTouch']
+        
+        profilesDir.eachDirRecurse {
+            def mainJs = new File(it, 'main.js')
+            if (mainJs.exists()) {
+                def content = mainJs.text
+                
+                // 检查是否使用了host.
+                if (content.contains('host.')) {
+                    throw new GradleException("Official profile $it.name uses forbidden host. access in main.js")
+                }
+                
+                // 检查是否使用了Experimental API（匹配方法调用模式）
+                experimentalAPIs.each { api ->
+                    def pattern = "${api}(" // 匹配方法调用，如setMousePosition(
+                    if (content.contains(pattern)) {
+                        throw new GradleException("Official profile $it.name uses forbidden Experimental API '$api' in main.js")
+                    }
+                }
+                
+                println "✓ Official profile $it.name passed API checks"
+            }
+        }
+    }
+}
+
+// 将检查任务添加到预构建阶段
+preBuild.dependsOn checkOfficialProfiles

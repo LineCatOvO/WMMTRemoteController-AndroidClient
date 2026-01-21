@@ -1,0 +1,14 @@
+{
+  "name": "WMMT 陀螺仪控制",
+  "version": "1.0.0",
+  "author": "Line",
+  "description": "使用陀螺仪控制转向，按钮控制油门和刹车",
+  "entry": "gyro_steering.js",
+  "compatibility": {
+    "gamepads": ["*"],
+    "androidVersion": ">= 10"
+  },
+  "dependencies": [],
+  "createdAt": "2026-01-21T12:00:00Z",
+  "id": "wmmt-gyro-1.0.0"
+}

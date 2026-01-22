@@ -15,18 +15,25 @@ import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
 import com.linecat.wmmtcontroller.MainActivity;
-import com.linecat.wmmtcontroller.floatwindow.FloatWindowManager;
+import com.linecat.wmmtcontroller.floatwindow.OverlayController;
 import com.linecat.wmmtcontroller.input.EventNormalizer;
 import com.linecat.wmmtcontroller.input.InputInterpreter;
 import com.linecat.wmmtcontroller.input.InputScriptEngine;
+import com.linecat.wmmtcontroller.input.InputController;
 import com.linecat.wmmtcontroller.input.JsInputScriptEngine;
+import com.linecat.wmmtcontroller.input.LayoutEngine;
 import com.linecat.wmmtcontroller.input.LayoutSnapshot;
 import com.linecat.wmmtcontroller.input.NormalizedEvent;
+import com.linecat.wmmtcontroller.input.OutputController;
 import com.linecat.wmmtcontroller.input.ProfileManager;
 import com.linecat.wmmtcontroller.input.RegionResolver;
+import com.linecat.wmmtcontroller.input.SafetyController;
 import com.linecat.wmmtcontroller.input.ScriptProfile;
 import com.linecat.wmmtcontroller.model.InputState;
 import com.linecat.wmmtcontroller.model.RawInput;
+import com.linecat.wmmtcontroller.monitor.SystemMonitor;
+import com.linecat.wmmtcontroller.monitor.SystemMonitor.ControlState;
+import com.linecat.wmmtcontroller.monitor.SystemMonitor.SafetyState;
 import java.util.ArrayList;
 
 /**
@@ -42,14 +49,16 @@ public class InputRuntimeService extends Service {
     private RuntimeConfig runtimeConfig;
     private ProfileManager profileManager;
     private InputScriptEngine scriptEngine;
-    private InputCollector inputCollector;
-    private WebSocketClient webSocketClient;
+    private InputController inputController;
+    private LayoutEngine layoutEngine;
+    private OutputController outputController;
+    private SafetyController safetyController;
+    private TransportController transportController;
+    private OverlayController overlayController;
     // 输入服务层组件
     private InputInterpreter inputInterpreter;
     private EventNormalizer eventNormalizer;
     private RegionResolver regionResolver;
-    // 浮窗管理器
-    private FloatWindowManager floatWindowManager;
     // UI更新Handler
     private android.os.Handler uiHandler;
 
@@ -75,15 +84,16 @@ public class InputRuntimeService extends Service {
         // 初始化UI Handler
         uiHandler = new android.os.Handler(android.os.Looper.getMainLooper());
 
-        // 初始化浮窗管理器
-        floatWindowManager = FloatWindowManager.getInstance(this);
-
         // 初始化广播接收器
         initConnectControlReceiver();
         initWebSocketStatusReceiver();
 
         // 初始化组件
         initializeComponents();
+
+        // 初始化系统监控器
+        SystemMonitor.getInstance().setControlState(ControlState.IDLE);
+        SystemMonitor.getInstance().setSafetyState(SafetyState.SAFE);
 
         // 启动前台服务
         startForeground(NOTIFICATION_ID, createNotification());
@@ -97,9 +107,12 @@ public class InputRuntimeService extends Service {
         if (!isRunning) {
             startMainLoop();
 
-            // 显示浮窗
-            floatWindowManager.showFloatWindow();
-            floatWindowManager.updateStatusText("服务运行中");
+            // 显示悬浮球
+            overlayController.showOverlay();
+            overlayController.updateStatus("服务运行中");
+
+            // 更新系统监控状态
+            SystemMonitor.getInstance().setControlState(ControlState.RUNNING);
 
             // 发送运行时启动广播
             Intent broadcastIntent = new Intent(RuntimeEvents.ACTION_RUNTIME_STARTED);
@@ -123,8 +136,8 @@ public class InputRuntimeService extends Service {
         // 停止主循环
         stopMainLoop();
 
-        // 隐藏浮窗
-        floatWindowManager.hideFloatWindow();
+        // 隐藏悬浮球
+        overlayController.hideOverlay();
 
         // 注销广播接收器
         if (connectControlReceiver != null) {
@@ -147,6 +160,10 @@ public class InputRuntimeService extends Service {
 
         // 清理资源
         cleanupComponents();
+
+        // 更新系统监控状态
+        SystemMonitor.getInstance().setControlState(ControlState.IDLE);
+        SystemMonitor.getInstance().setSafetyState(SafetyState.SAFE);
 
         super.onDestroy();
     }
@@ -199,12 +216,12 @@ public class InputRuntimeService extends Service {
                         case "com.linecat.wmmtcontroller.ACTION_START_CONNECT":
                             Log.d(TAG, "Received start connect broadcast");
                             // 开始连接WebSocket
-                            webSocketClient.connect();
+                            transportController.connect();
                             break;
                         case "com.linecat.wmmtcontroller.ACTION_STOP_CONNECT":
                             Log.d(TAG, "Received stop connect broadcast");
                             // 断开WebSocket连接
-                            webSocketClient.disconnect();
+                            transportController.disconnect();
                             break;
                     }
                 }
@@ -230,9 +247,12 @@ public class InputRuntimeService extends Service {
                     switch (action) {
                         case RuntimeEvents.ACTION_WS_DISCONNECTED:
                             Log.d(TAG, "Received WebSocket disconnected broadcast");
+                            // 通信断开时触发安全清零
+                            safetyController.triggerSafetyClear();
+                            
                             // 检查是否是因为连接失败导致的断开
                             // 如果当前尝试连接但未成功，显示连接错误
-                            if (webSocketClient != null && !webSocketClient.isConnected()) {
+                            if (transportController != null && !transportController.isConnected()) {
                                 showConnectionError();
                             }
                             break;
@@ -254,22 +274,37 @@ public class InputRuntimeService extends Service {
         // 创建运行时配置
         runtimeConfig = new RuntimeConfig(this);
 
+        // 创建输出控制器
+        outputController = new OutputController();
+        
+        // 创建布局引擎
+        layoutEngine = new LayoutEngine(outputController);
+        layoutEngine.setContext(this);
+        layoutEngine.init();
+
         // 创建脚本引擎
         scriptEngine = new JsInputScriptEngine(this);
 
         // 创建配置文件管理器
         profileManager = new ProfileManager(this, scriptEngine);
 
-        // 创建输入采集器
-        inputCollector = new InputCollector();
+        // 创建输入控制器
+        inputController = new InputController(this);
 
+        // 创建悬浮球控制器
+        overlayController = new OverlayController(this);
+        
+        // 创建安全控制器
+        safetyController = new SafetyController(outputController);
+        
         // 创建输入服务层组件
         inputInterpreter = new InputInterpreter();
         eventNormalizer = new EventNormalizer();
         regionResolver = new RegionResolver(this);
 
-        // 创建WebSocket客户端，使用配置的URL
-        webSocketClient = new WebSocketClient(this, runtimeConfig.getWebSocketUrl());
+        // 创建传输控制器
+        transportController = new TransportController(this, runtimeConfig);
+        transportController.init();
 
         // 初始化各组件
         scriptEngine.init();
@@ -291,29 +326,54 @@ public class InputRuntimeService extends Service {
         Intent engineReadyIntent = new Intent(RuntimeEvents.ACTION_SCRIPT_ENGINE_READY);
         sendBroadcast(engineReadyIntent);
 
-        inputCollector.init(this);
-        webSocketClient.init();
+        // 初始化输入控制器
+        inputController.start();
+
+        Log.d(TAG, "All components initialized");
     }
 
     /**
      * 清理组件
      */
     private void cleanupComponents() {
-        // 清理各组件
-        if (webSocketClient != null) {
-            webSocketClient.shutdown();
+        // 停止输入控制器
+        if (inputController != null) {
+            inputController.stop();
         }
-
-        if (inputCollector != null) {
-            inputCollector.shutdown();
+        
+        // 清理安全控制器
+        if (safetyController != null) {
+            safetyController.destroy();
         }
-
-        if (profileManager != null) {
-            profileManager.unloadCurrentProfile();
+        
+        // 清理布局引擎
+        if (layoutEngine != null) {
+            layoutEngine.reset();
         }
-
+        
+        // 清理输出控制器
+        if (outputController != null) {
+            outputController.clearAllOutputs();
+        }
+        
+        // 清理悬浮球控制器
+        if (overlayController != null) {
+            overlayController.destroy();
+        }
+        
+        // 清理传输控制器
+        if (transportController != null) {
+            transportController.cleanup();
+        }
+        
+        // 清理脚本引擎
         if (scriptEngine != null) {
             scriptEngine.shutdown();
+        }
+        
+        // 清理配置文件管理器
+        if (profileManager != null) {
+            profileManager.unloadCurrentProfile();
         }
         
         // 清理输入服务层组件
@@ -328,6 +388,8 @@ public class InputRuntimeService extends Service {
         if (regionResolver != null) {
             regionResolver.reset();
         }
+        
+        Log.d(TAG, "All components cleaned up");
     }
 
     /**
@@ -340,63 +402,32 @@ public class InputRuntimeService extends Service {
             while (isRunning) {
                 try {
                     // 1. 采集原始输入
-                    RawInput rawInput = inputCollector.collect();
+                    RawInput rawInput = inputController.collect();
 
-                    // 2. 使用输入解释器将原始输入转换为标准化事件
-                    // 从区域解析器获取当前布局快照
-                    LayoutSnapshot currentLayout = regionResolver.getCurrentLayoutSnapshot();
-                    NormalizedEvent event = inputInterpreter.interpret(rawInput, currentLayout);
-                    
-                    // 3. 使用事件标准化器处理标准化事件
-                    if (event != null) {
-                        eventNormalizer.processEvent(event);
-                        
-                        // 4. 将处理后的事件发送到JS层
-                        NormalizedEvent normalizedEvent;
-                        while ((normalizedEvent = eventNormalizer.getNextEvent()) != null) {
-                            if (scriptEngine instanceof JsInputScriptEngine) {
-                                ((JsInputScriptEngine) scriptEngine).sendNormalizedEventToJs(normalizedEvent);
-                            }
-                        }
-                    }
+                    // 2. 执行布局处理
+                    InputState inputState = layoutEngine.executeLayout(rawInput, frameIdCounter);
 
-                    // 5. 更新脚本引擎（保留原有逻辑，确保兼容旧版本脚本）
-                    InputState inputState = new InputState();
-                    boolean updateSuccess = scriptEngine.update(rawInput, inputState);
-
-                    // 6. 处理自动回滚
-                    if (!updateSuccess) {
-                        // 发送运行时错误广播
-                        Intent errorIntent = new Intent(RuntimeEvents.ACTION_RUNTIME_ERROR);
-                        errorIntent.putExtra(RuntimeEvents.EXTRA_ERROR_TYPE, RuntimeEvents.ERROR_TYPE_RUNTIME_ERROR);
-                        sendBroadcast(errorIntent);
-
-                        boolean rollbackSuccess = profileManager.autoRollback();
-                        if (rollbackSuccess) {
-                            // 发送配置文件回滚成功广播
-                            Intent rollbackIntent = new Intent(RuntimeEvents.ACTION_PROFILE_ROLLBACK);
-                            sendBroadcast(rollbackIntent);
-                        }
-                    }
-
-                    // 7. 设置单调递增的 frameId
-                    inputState.setFrameId(frameIdCounter);
-                    // 递增 frameId，确保下次生成更大的值
+                    // 3. 递增 frameId
                     frameIdCounter++;
 
-                    // 8. 发送输入状态到WebSocket
-                    webSocketClient.sendInputState(inputState);
+                    // 4. 发送输入状态
+                    transportController.sendInputState(inputState);
 
-                    // 9. 更新浮窗状态
-                    updateFloatWindowStatus(frameIdCounter - 1, updateSuccess);
+                    // 5. 更新悬浮球状态
+                    updateFloatWindowStatus(frameIdCounter - 1, true);
 
-                    // 10. 等待下一帧
+                    // 6. 等待下一帧
                     Thread.sleep(16); // 约60 FPS
 
                 } catch (Exception e) {
                     Log.e(TAG, "Error in main loop", e);
-                    // 发生错误时尝试回滚
+                    
+                    // 处理异常，触发安全清零
+                    safetyController.handleException(e);
+                    
+                    // 尝试回滚配置文件
                     profileManager.autoRollback();
+                    
                     // 更新浮窗错误状态
                     updateFloatWindowStatus(frameIdCounter - 1, false);
                 }
@@ -416,22 +447,20 @@ public class InputRuntimeService extends Service {
     private void updateFloatWindowStatus(long frameId, boolean isRunningNormally) {
         // 使用Handler更新UI
         uiHandler.post(() -> {
-            if (floatWindowManager != null && floatWindowManager.isFloatWindowShowing()) {
-                String statusText;
-                // 区分脚本执行错误和正常的未连接状态
-                if (isRunningNormally) {
-                    // 脚本执行正常
-                    if (webSocketClient.isConnected()) {
-                        statusText = "运行中";
-                    } else {
-                        statusText = "未连接";
-                    }
+            String statusText;
+            // 区分脚本执行错误和正常的未连接状态
+            if (isRunningNormally) {
+                // 脚本执行正常
+                if (transportController.isConnected()) {
+                    statusText = "运行中";
                 } else {
-                    // 脚本执行错误
-                    statusText = "脚本错误";
+                    statusText = "未连接";
                 }
-                floatWindowManager.updateStatusText(statusText);
+            } else {
+                // 脚本执行错误
+                statusText = "脚本错误";
             }
+            overlayController.updateStatus(statusText);
         });
     }
 
@@ -490,9 +519,7 @@ public class InputRuntimeService extends Service {
     private void showConnectionError() {
         // 使用Handler在UI线程显示错误提示
         uiHandler.post(() -> {
-            if (floatWindowManager != null) {
-                floatWindowManager.showConnectionError();
-            }
+            overlayController.showConnectionError();
         });
     }
 }

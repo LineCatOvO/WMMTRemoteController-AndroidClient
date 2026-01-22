@@ -25,6 +25,34 @@ public class InputState {
         this.joystick = new JoystickState();
         this.gyroscope = new GyroscopeState();
     }
+    
+    // Copy构造函数
+    public InputState(InputState other) {
+        this.frameId = other.frameId;
+        this.runtimeStatus = other.runtimeStatus;
+        this.keyboard = new ArrayList<>(other.keyboard);
+        
+        // 深拷贝内部类
+        this.mouse = new MouseState();
+        this.mouse.setX(other.mouse.getX());
+        this.mouse.setY(other.mouse.getY());
+        this.mouse.setLeft(other.mouse.isLeft());
+        this.mouse.setRight(other.mouse.isRight());
+        this.mouse.setMiddle(other.mouse.isMiddle());
+        
+        this.joystick = new JoystickState();
+        this.joystick.setX(other.joystick.getX());
+        this.joystick.setY(other.joystick.getY());
+        this.joystick.setDeadzone(other.joystick.getDeadzone());
+        this.joystick.setSmoothing(other.joystick.getSmoothing());
+        
+        this.gyroscope = new GyroscopeState();
+        this.gyroscope.setPitch(other.gyroscope.getPitch());
+        this.gyroscope.setRoll(other.gyroscope.getRoll());
+        this.gyroscope.setYaw(other.gyroscope.getYaw());
+        this.gyroscope.setDeadzone(other.gyroscope.getDeadzone());
+        this.gyroscope.setSmoothing(other.gyroscope.getSmoothing());
+    }
 
     // getter和setter
     public long getFrameId() {

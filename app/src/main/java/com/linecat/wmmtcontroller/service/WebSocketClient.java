@@ -161,6 +161,15 @@ public class WebSocketClient {
     }
     
     /**
+     * 更新WebSocket服务器URL
+     * @param newUrl 新的WebSocket服务器URL
+     */
+    public void updateWebSocketUrl(String newUrl) {
+        this.serverUrl = newUrl;
+        Log.d(TAG, "WebSocket URL updated to: " + newUrl);
+    }
+    
+    /**
      * 发送输入状态到服务器
      * @param inputState 输入状态
      */

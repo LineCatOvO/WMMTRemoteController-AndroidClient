@@ -61,9 +61,9 @@ public class RegionResolver {
             newRegions = new ArrayList<>();
         }
         
-        // 按优先级排序，优先级高的排在前面
+        // 按zIndex排序，zIndex高的排在前面
         List<Region> sortedRegions = new ArrayList<>(newRegions);
-        sortedRegions.sort(Comparator.comparingInt(Region::priority).reversed());
+        sortedRegions.sort(Comparator.comparingInt(Region::getZIndex).reversed());
         
         // 更新区域列表
         this.regions = Collections.unmodifiableList(sortedRegions);
@@ -93,7 +93,7 @@ public class RegionResolver {
         }
         
         for (Region region : regions) {
-            if (region.id().equals(regionId)) {
+            if (region.getId().equals(regionId)) {
                 return region;
             }
         }
@@ -188,8 +188,21 @@ public class RegionResolver {
                 JSONObject customDataObj = regionObj.optJSONObject("customData");
                 Object customData = customDataObj != null ? customDataObj : null;
                 
-                // 创建Region对象
-                Region region = new Region(id, type, left, top, right, bottom, priority, customData);
+                // 创建Region对象，为缺少的参数提供默认值
+                Region region = new Region(
+                        id, type, left, top, right, bottom, priority, 
+                        0.0f, // deadzone
+                        "linear", // curve
+                        new float[]{0.0f, 1.0f}, // range
+                        new float[]{0.0f, 1.0f}, // outputRange
+                        null, // operationType
+                        null, // mappingType
+                        null, // mappingKey
+                        null, // mappingAxis
+                        null, // mappingButton
+                        null, // customMappingTarget
+                        customData // customData
+                );
                 parsedRegions.add(region);
             }
             

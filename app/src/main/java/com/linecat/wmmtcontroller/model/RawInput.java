@@ -12,6 +12,11 @@ public class RawInput {
     private float gyroPitch;
     private float gyroRoll;
     private float gyroYaw;
+    
+    // 加速度计数据（m/s²）
+    private float accelX;
+    private float accelY;
+    private float accelZ;
 
     // 触摸数据
     private boolean touchPressed;
@@ -30,6 +35,26 @@ public class RawInput {
     // 构造函数
     public RawInput() {
         this.gamepad = new GamepadData();
+    }
+    
+    // Copy构造函数
+    public RawInput(RawInput other) {
+        this.gyroPitch = other.gyroPitch;
+        this.gyroRoll = other.gyroRoll;
+        this.gyroYaw = other.gyroYaw;
+        this.accelX = other.accelX;
+        this.accelY = other.accelY;
+        this.accelZ = other.accelZ;
+        this.touchPressed = other.touchPressed;
+        this.touchX = other.touchX;
+        this.touchY = other.touchY;
+        this.buttonA = other.buttonA;
+        this.buttonB = other.buttonB;
+        this.buttonC = other.buttonC;
+        this.buttonD = other.buttonD;
+        this.gamepad = new GamepadData();
+        this.gamepad.getAxes().putAll(other.gamepad.getAxes());
+        this.gamepad.getButtons().putAll(other.gamepad.getButtons());
     }
 
     // 陀螺仪数据 getter/setter
@@ -55,6 +80,31 @@ public class RawInput {
 
     public void setGyroYaw(float gyroYaw) {
         this.gyroYaw = gyroYaw;
+    }
+    
+    // 加速度计数据 getter/setter
+    public float getAccelX() {
+        return accelX;
+    }
+    
+    public void setAccelX(float accelX) {
+        this.accelX = accelX;
+    }
+    
+    public float getAccelY() {
+        return accelY;
+    }
+    
+    public void setAccelY(float accelY) {
+        this.accelY = accelY;
+    }
+    
+    public float getAccelZ() {
+        return accelZ;
+    }
+    
+    public void setAccelZ(float accelZ) {
+        this.accelZ = accelZ;
     }
 
     // 触摸数据 getter/setter
@@ -130,6 +180,9 @@ public class RawInput {
                 "gyroPitch=" + gyroPitch +
                 ", gyroRoll=" + gyroRoll +
                 ", gyroYaw=" + gyroYaw +
+                ", accelX=" + accelX +
+                ", accelY=" + accelY +
+                ", accelZ=" + accelZ +
                 ", touchPressed=" + touchPressed +
                 ", touchX=" + touchX +
                 ", touchY=" + touchY +

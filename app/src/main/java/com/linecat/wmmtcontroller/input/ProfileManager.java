@@ -32,6 +32,7 @@ public class ProfileManager {
     
     private Context context;
     private InputScriptEngine scriptEngine;
+    private LayoutEngine layoutEngine;
     private AtomicReference<ScriptProfile> currentProfile = new AtomicReference<>();
     private AtomicReference<ScriptProfile> previousProfile = new AtomicReference<>();
     private List<ScriptProfile> availableProfiles = new ArrayList<>();
@@ -53,6 +54,22 @@ public class ProfileManager {
         } catch (ClassNotFoundException e) {
             isLogEnabled = false;
         }
+    }
+    
+    /**
+     * 设置布局引擎
+     * @param layoutEngine 布局引擎
+     */
+    public void setLayoutEngine(LayoutEngine layoutEngine) {
+        this.layoutEngine = layoutEngine;
+    }
+    
+    /**
+     * 获取布局引擎
+     * @return 布局引擎
+     */
+    public LayoutEngine getLayoutEngine() {
+        return layoutEngine;
     }
     
     /**
@@ -96,8 +113,11 @@ public class ProfileManager {
     public void loadAvailableProfiles() {
         availableProfiles.clear();
         
-        // 从assets加载配置文件
-        loadProfilesFromAssets();
+        // 从assets加载官方配置文件
+        loadOfficialProfilesFromAssets();
+        
+        // 从assets加载自定义配置文件
+        loadCustomProfilesFromAssets();
         
         // 从外部存储加载配置文件
         loadProfilesFromStorage();
@@ -106,24 +126,24 @@ public class ProfileManager {
     }
     
     /**
-     * 从assets加载配置文件
+     * 从assets加载官方配置文件
      */
-    private void loadProfilesFromAssets() {
+    private void loadOfficialProfilesFromAssets() {
         AssetManager assetManager = context.getAssets();
         
         try {
-            // 列出assets/profiles目录下的所有文件
-            String[] profileFiles = assetManager.list("profiles");
-            if (profileFiles != null) {
-                for (String profileFile : profileFiles) {
-                    if (profileFile.endsWith(".json")) {
-                        // 加载profile.json
-                        String profileJson = readAssetFile("profiles/" + profileFile);
+            // 列出assets/official-profiles目录下的所有子目录
+            String[] profileDirs = assetManager.list("official-profiles");
+            if (profileDirs != null) {
+                for (String profileDir : profileDirs) {
+                    try {
+                        // 尝试加载profile.json
+                        String profileJson = readAssetFile("official-profiles/" + profileDir + "/profile.json");
                         JSONObject jsonObject = new JSONObject(profileJson);
                         
                         // 加载对应的脚本文件
                         String entryPoint = jsonObject.getString("entry");
-                        String scriptCode = readAssetFile("scripts/" + entryPoint);
+                        String scriptCode = readAssetFile("official-profiles/" + profileDir + "/" + entryPoint);
                         
                         // 创建ScriptProfile对象
                         ScriptProfile profile = new ScriptProfile(
@@ -137,15 +157,84 @@ public class ProfileManager {
                         // 设置ID
                         if (jsonObject.has("id")) {
                             profile.setId(jsonObject.getString("id"));
+                        } else {
+                            // 使用profileDir作为ID
+                            profile.setId("official-profiles/" + profileDir);
+                        }
+                        
+                        // 设置engineApiVersion
+                        if (jsonObject.has("engineApiVersion")) {
+                            profile.setEngineApiVersion(jsonObject.getString("engineApiVersion"));
+                        } else {
+                            profile.setEngineApiVersion("1.0.0");
                         }
                         
                         // 添加到可用配置文件列表
                         availableProfiles.add(profile);
+                        log(Log.DEBUG, TAG, "Loaded official profile: " + profile.getName() + " from " + profileDir);
+                    } catch (Exception e) {
+                        log(Log.WARN, TAG, "Failed to load official profile from " + profileDir, e);
                     }
                 }
             }
-        } catch (IOException | JSONException e) {
-            log(Log.ERROR, TAG, "Error loading profiles from assets", e);
+        } catch (IOException e) {
+            log(Log.ERROR, TAG, "Error listing official profiles", e);
+        }
+    }
+    
+    /**
+     * 从assets加载自定义配置文件
+     */
+    private void loadCustomProfilesFromAssets() {
+        AssetManager assetManager = context.getAssets();
+        
+        try {
+            // 列出assets/profiles目录下的所有文件
+            String[] profileFiles = assetManager.list("profiles");
+            if (profileFiles != null) {
+                for (String profileFile : profileFiles) {
+                    if (profileFile.endsWith(".json")) {
+                        try {
+                            // 加载profile.json
+                            String profileJson = readAssetFile("profiles/" + profileFile);
+                            JSONObject jsonObject = new JSONObject(profileJson);
+                            
+                            // 加载对应的脚本文件
+                            String entryPoint = jsonObject.getString("entry");
+                            String scriptCode = readAssetFile("scripts/" + entryPoint);
+                            
+                            // 创建ScriptProfile对象
+                            ScriptProfile profile = new ScriptProfile(
+                                jsonObject.getString("name"),
+                                jsonObject.getString("version"),
+                                jsonObject.getString("author"),
+                                entryPoint,
+                                scriptCode
+                            );
+                            
+                            // 设置ID
+                            if (jsonObject.has("id")) {
+                                profile.setId(jsonObject.getString("id"));
+                            }
+                            
+                            // 设置engineApiVersion
+                            if (jsonObject.has("engineApiVersion")) {
+                                profile.setEngineApiVersion(jsonObject.getString("engineApiVersion"));
+                            } else {
+                                profile.setEngineApiVersion("1.0.0");
+                            }
+                            
+                            // 添加到可用配置文件列表
+                            availableProfiles.add(profile);
+                            log(Log.DEBUG, TAG, "Loaded custom profile: " + profile.getName() + " from " + profileFile);
+                        } catch (Exception e) {
+                            log(Log.WARN, TAG, "Failed to load custom profile from " + profileFile, e);
+                        }
+                    }
+                }
+            }
+        } catch (IOException e) {
+            log(Log.ERROR, TAG, "Error listing custom profiles", e);
         }
     }
     
@@ -213,6 +302,12 @@ public class ProfileManager {
         // 原子切换：先保存当前Profile，再替换
         previousProfile.set(currentProfile.get());
         currentProfile.set(profile);
+        
+        // 布局切换时触发安全清零
+        if (layoutEngine != null) {
+            // 这里可以添加布局引擎的布局切换逻辑
+            // layoutEngine.setLayout(newLayout);
+        }
         
         log(Log.DEBUG, TAG, "Switched to profile: " + profile.getName());
         return true;

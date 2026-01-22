@@ -14,16 +14,35 @@ public class LayoutSnapshot {
     
     private final List<Region> regions;
     private final long timestamp;
+    private final float screenWidth;
+    private final float screenHeight;
     
     /**
      * 构造函数
      * @param regions 区域列表
      */
     public LayoutSnapshot(List<Region> regions) {
-        // 创建区域列表的不可变副本，并按优先级排序（优先级高的在前）
+        this(regions, 1080f, 1920f); // 默认屏幕尺寸
+    }
+    
+    /**
+     * 构造函数
+     * @param regions 区域列表
+     * @param screenWidth 屏幕宽度
+     * @param screenHeight 屏幕高度
+     */
+    public LayoutSnapshot(List<Region> regions, float screenWidth, float screenHeight) {
+        // 创建区域列表的不可变副本，并按zIndex排序（zIndex高的在前）
         this.regions = new ArrayList<>(regions);
-        Collections.sort(this.regions, Comparator.comparingInt(Region::priority).reversed());
+        Collections.sort(this.regions, new Comparator<Region>() {
+            @Override
+            public int compare(Region r1, Region r2) {
+                return Integer.compare(r2.getZIndex(), r1.getZIndex()); // 降序排序，高zIndex优先
+            }
+        });
         this.timestamp = System.currentTimeMillis();
+        this.screenWidth = screenWidth;
+        this.screenHeight = screenHeight;
     }
     
     /**
@@ -33,9 +52,9 @@ public class LayoutSnapshot {
      * @return 命中的区域，如果没有命中则返回null
      */
     public Region hitTest(float normalizedX, float normalizedY) {
-        // 遍历所有区域，返回第一个命中的区域（按优先级排序，优先级高的先检查）
+        // 遍历所有区域，返回第一个命中的区域（按zIndex排序，高zIndex的先检查）
         for (Region region : regions) {
-            if (region.contains(normalizedX, normalizedY)) {
+            if (region.hitTest(normalizedX, normalizedY)) {
                 return region;
             }
         }
@@ -57,7 +76,7 @@ public class LayoutSnapshot {
      */
     public Region getRegionById(String regionId) {
         for (Region region : regions) {
-            if (region.id().equals(regionId)) {
+            if (region.getId().equals(regionId)) {
                 return region;
             }
         }
@@ -87,5 +106,31 @@ public class LayoutSnapshot {
      */
     public boolean containsRegion(String regionId) {
         return getRegionById(regionId) != null;
+    }
+    
+    /**
+     * 获取屏幕宽度
+     * @return 屏幕宽度
+     */
+    public float getScreenWidth() {
+        return screenWidth;
+    }
+    
+    /**
+     * 获取屏幕高度
+     * @return 屏幕高度
+     */
+    public float getScreenHeight() {
+        return screenHeight;
+    }
+    
+    @Override
+    public String toString() {
+        return "LayoutSnapshot{" +
+                "regions.size()=" + regions.size() +
+                ", timestamp=" + timestamp +
+                ", screenWidth=" + screenWidth +
+                ", screenHeight=" + screenHeight +
+                '}';
     }
 }

@@ -20,7 +20,8 @@
             android:icon="@mipmap/ic_launcher"
             android:roundIcon="@mipmap/ic_launcher_round"
             android:supportsRtl="true"
-            android:theme="@style/Theme.WMMTController">
+            android:theme="@style/Theme.WMMTController"
+            android:usesCleartextTraffic="true">
 
         <!-- 主活动 -->
         <activity
@@ -33,6 +34,8 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        
+        
 
         <!-- 传感器服务 -->
         <service

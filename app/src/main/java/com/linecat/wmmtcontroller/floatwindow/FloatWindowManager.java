@@ -9,9 +9,13 @@ import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.CheckBox;
+import android.widget.EditText;
 import android.widget.TextView;
 
 import com.linecat.wmmtcontroller.R;
+import com.linecat.wmmtcontroller.model.ConnectionInfo;
+import com.linecat.wmmtcontroller.service.RuntimeConfig;
 
 /**
  * 浮窗管理器
@@ -96,17 +100,15 @@ public class FloatWindowManager {
         circleEntryView = floatView.findViewById(R.id.ll_circle_entry);
         popupMenuView = floatView.findViewById(R.id.ll_popup_menu);
         
-        // 设置圆形入口的点击事件
-        circleEntryView.setOnClickListener(v -> togglePopupMenu());
-        
         // 设置菜单项点击事件
         setupMenuItemListeners();
         
-        // 设置浮窗触摸事件，实现拖拽功能
-        circleEntryView.setOnTouchListener(new View.OnTouchListener() {
+        // 设置浮窗触摸事件，实现拖拽功能和菜单显示控制
+        floatView.setOnTouchListener(new View.OnTouchListener() {
             private int lastX, lastY;
             private int paramX, paramY;
             private boolean isDragging = false;
+            private boolean isClickingCircle = false;
             
             @Override
             public boolean onTouch(View v, MotionEvent event) {
@@ -117,6 +119,25 @@ public class FloatWindowManager {
                         paramX = windowParams.x;
                         paramY = windowParams.y;
                         isDragging = false;
+                        isClickingCircle = false;
+                        
+                        // 检查点击位置是否在圆形入口内
+                        int[] circleLocation = new int[2];
+                        circleEntryView.getLocationOnScreen(circleLocation);
+                        int circleLeft = circleLocation[0];
+                        int circleTop = circleLocation[1];
+                        int circleRight = circleLeft + circleEntryView.getWidth();
+                        int circleBottom = circleTop + circleEntryView.getHeight();
+                        
+                        int rawX = (int) event.getRawX();
+                        int rawY = (int) event.getRawY();
+                        
+                        if (rawX >= circleLeft && rawX <= circleRight && rawY >= circleTop && rawY <= circleBottom) {
+                            isClickingCircle = true;
+                        } else if (isPopupMenuShowing) {
+                            // 点击的是其他区域，隐藏菜单
+                            hidePopupMenu();
+                        }
                         break;
                     case MotionEvent.ACTION_MOVE:
                         int dx = (int) event.getRawX() - lastX;
@@ -131,28 +152,14 @@ public class FloatWindowManager {
                         }
                         break;
                     case MotionEvent.ACTION_UP:
-                        // 如果不是拖拽，触发点击事件
-                        if (!isDragging) {
-                            v.performClick();
+                        // 如果不是拖拽且点击的是圆形入口，触发点击事件
+                        if (!isDragging && isClickingCircle) {
+                            togglePopupMenu();
                         }
                         break;
                 }
-                // 如果是拖拽，返回true消费事件，否则返回false让点击事件处理
-                return isDragging;
-            }
-        });
-        
-        // 设置浮窗其他区域的点击事件，用于隐藏弹出菜单
-        floatView.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                // 如果点击的是浮窗区域但不是圆形入口和弹出菜单，隐藏菜单
-                if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                    if (isPopupMenuShowing) {
-                        hidePopupMenu();
-                    }
-                }
-                return false;
+                // 总是返回true，消费所有事件，避免事件冒泡导致的冲突
+                return true;
             }
         });
     }
@@ -179,10 +186,24 @@ public class FloatWindowManager {
             hidePopupMenu();
         });
         
-        // 设置按钮点击事件
-        floatView.findViewById(R.id.btn_menu_settings).setOnClickListener(v -> {
-            Log.d(TAG, "Settings button clicked");
+        // 显示设置面板按钮点击事件
+        floatView.findViewById(R.id.btn_show_settings).setOnClickListener(v -> {
+            Log.d(TAG, "Show settings button clicked");
             hidePopupMenu();
+            showSettingsPanel();
+        });
+        
+        // 保存设置按钮点击事件
+        floatView.findViewById(R.id.btn_save_settings).setOnClickListener(v -> {
+            Log.d(TAG, "Save settings button clicked");
+            saveSettings();
+            hideSettingsPanel();
+        });
+        
+        // 取消设置按钮点击事件
+        floatView.findViewById(R.id.btn_cancel_settings).setOnClickListener(v -> {
+            Log.d(TAG, "Cancel settings button clicked");
+            hideSettingsPanel();
         });
     }
     
@@ -222,6 +243,110 @@ public class FloatWindowManager {
                 | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON;
         windowManager.updateViewLayout(floatView, windowParams);
         Log.d(TAG, "Popup menu hidden");
+    }
+    
+    /**
+     * 显示设置面板
+     */
+    private void showSettingsPanel() {
+        // 加载当前设置
+        loadCurrentSettings();
+        // 显示设置面板
+        View settingsPanel = floatView.findViewById(R.id.ll_settings_panel);
+        settingsPanel.setVisibility(View.VISIBLE);
+        // 更新窗口参数，允许获取焦点
+        windowParams.flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON;
+        windowManager.updateViewLayout(floatView, windowParams);
+        Log.d(TAG, "Settings panel showed");
+    }
+    
+    /**
+     * 隐藏设置面板
+     */
+    private void hideSettingsPanel() {
+        View settingsPanel = floatView.findViewById(R.id.ll_settings_panel);
+        settingsPanel.setVisibility(View.GONE);
+        // 恢复窗口参数，不获取焦点
+        windowParams.flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON;
+        windowManager.updateViewLayout(floatView, windowParams);
+        Log.d(TAG, "Settings panel hidden");
+    }
+    
+    /**
+     * 加载当前设置到UI组件
+     */
+    private void loadCurrentSettings() {
+        // 从RuntimeConfig获取当前连接信息
+        RuntimeConfig runtimeConfig = new RuntimeConfig(context);
+        ConnectionInfo connectionInfo = runtimeConfig.getDefaultConnectionInfo();
+        
+        EditText etAddress = floatView.findViewById(R.id.et_address);
+        EditText etPort = floatView.findViewById(R.id.et_port);
+        CheckBox cbUseTls = floatView.findViewById(R.id.cb_use_tls);
+        
+        if (connectionInfo != null) {
+            etAddress.setText(connectionInfo.getAddress());
+            etPort.setText(String.valueOf(connectionInfo.getPort()));
+            cbUseTls.setChecked(connectionInfo.isUseTls());
+        } else {
+            // 默认值
+            etAddress.setText("localhost");
+            etPort.setText("8080");
+            cbUseTls.setChecked(false);
+        }
+    }
+    
+    /**
+     * 保存设置
+     */
+    private void saveSettings() {
+        EditText etAddress = floatView.findViewById(R.id.et_address);
+        EditText etPort = floatView.findViewById(R.id.et_port);
+        CheckBox cbUseTls = floatView.findViewById(R.id.cb_use_tls);
+        
+        String address = etAddress.getText().toString().trim();
+        String portStr = etPort.getText().toString().trim();
+        boolean useTls = cbUseTls.isChecked();
+        
+        // 验证输入
+        if (address.isEmpty()) {
+            Log.w(TAG, "Address is empty, using default");
+            address = "localhost";
+        }
+        
+        int port;
+        try {
+            port = Integer.parseInt(portStr);
+            if (port < 1 || port > 65535) {
+                Log.w(TAG, "Invalid port, using default");
+                port = 8080;
+            }
+        } catch (NumberFormatException e) {
+            Log.w(TAG, "Invalid port format, using default");
+            port = 8080;
+        }
+        
+        // 保存到数据库
+        RuntimeConfig runtimeConfig = new RuntimeConfig(context);
+        ConnectionInfo connectionInfo = runtimeConfig.getDefaultConnectionInfo();
+        
+        if (connectionInfo != null) {
+            // 更新现有连接信息
+            connectionInfo.setAddress(address);
+            connectionInfo.setPort(port);
+            connectionInfo.setUseTls(useTls);
+        } else {
+            // 创建新连接信息
+            connectionInfo = new ConnectionInfo(address, port);
+            connectionInfo.setUseTls(useTls);
+            connectionInfo.setDefault(true);
+        }
+        
+        long id = runtimeConfig.saveConnectionInfo(connectionInfo);
+        Log.d(TAG, "Settings saved with ID: " + id);
     }
     
     /**

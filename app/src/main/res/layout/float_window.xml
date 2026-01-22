@@ -55,12 +55,134 @@
             android:layout_margin="8dp" />
 
         <Button
-            android:id="@+id/btn_menu_settings"
+            android:id="@+id/btn_show_settings"
             android:layout_width="match_parent"
             android:layout_height="50dp"
             android:text="设置"
             android:textColor="@android:color/black"
             android:backgroundTint="@android:color/holo_blue_light"
             android:layout_margin="8dp" />
+    </LinearLayout>
+
+    <!-- 设置界面容器 -->
+    <LinearLayout
+        android:id="@+id/ll_settings_panel"
+        android:layout_width="300dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@android:color/white"
+        android:elevation="12dp"
+        android:visibility="gone"
+        android:layout_marginTop="70dp"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="连接设置"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_marginBottom="16dp" />
+
+        <!-- 连接地址 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="连接地址"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="4dp" />
+
+            <EditText
+                android:id="@+id/et_address"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="text"
+                android:hint="输入服务器地址"
+                android:textSize="14sp"
+                android:padding="8dp"
+                android:background="@android:drawable/editbox_background" />
+        </LinearLayout>
+
+        <!-- 端口号 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="端口号"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="4dp" />
+
+            <EditText
+                android:id="@+id/et_port"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                android:hint="输入端口号"
+                android:textSize="14sp"
+                android:padding="8dp"
+                android:background="@android:drawable/editbox_background" />
+        </LinearLayout>
+
+        <!-- TLS选项 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="24dp">
+
+            <CheckBox
+                android:id="@+id/cb_use_tls"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="使用TLS加密"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <!-- 操作按钮 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <Button
+                android:id="@+id/btn_save_settings"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="保存"
+                android:textSize="14sp"
+                android:backgroundTint="@android:color/holo_green_light"
+                android:layout_marginEnd="8dp" />
+
+            <Button
+                android:id="@+id/btn_cancel_settings"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="取消"
+                android:textSize="14sp"
+                android:backgroundTint="@android:color/holo_red_light"
+                android:layout_marginStart="8dp" />
+        </LinearLayout>
     </LinearLayout>
 </FrameLayout>

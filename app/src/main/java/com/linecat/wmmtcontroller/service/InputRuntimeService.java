@@ -16,12 +16,18 @@ import androidx.core.app.NotificationCompat;
 
 import com.linecat.wmmtcontroller.MainActivity;
 import com.linecat.wmmtcontroller.floatwindow.FloatWindowManager;
+import com.linecat.wmmtcontroller.input.EventNormalizer;
+import com.linecat.wmmtcontroller.input.InputInterpreter;
 import com.linecat.wmmtcontroller.input.InputScriptEngine;
 import com.linecat.wmmtcontroller.input.JsInputScriptEngine;
+import com.linecat.wmmtcontroller.input.LayoutSnapshot;
+import com.linecat.wmmtcontroller.input.NormalizedEvent;
 import com.linecat.wmmtcontroller.input.ProfileManager;
+import com.linecat.wmmtcontroller.input.RegionResolver;
 import com.linecat.wmmtcontroller.input.ScriptProfile;
 import com.linecat.wmmtcontroller.model.InputState;
 import com.linecat.wmmtcontroller.model.RawInput;
+import java.util.ArrayList;
 
 /**
  * 输入运行时服务
@@ -38,6 +44,10 @@ public class InputRuntimeService extends Service {
     private InputScriptEngine scriptEngine;
     private InputCollector inputCollector;
     private WebSocketClient webSocketClient;
+    // 输入服务层组件
+    private InputInterpreter inputInterpreter;
+    private EventNormalizer eventNormalizer;
+    private RegionResolver regionResolver;
     // 浮窗管理器
     private FloatWindowManager floatWindowManager;
     // UI更新Handler
@@ -51,6 +61,8 @@ public class InputRuntimeService extends Service {
 
     // 广播接收器，用于处理连接控制事件
     private android.content.BroadcastReceiver connectControlReceiver;
+    // 广播接收器，用于处理WebSocket连接状态事件
+    private android.content.BroadcastReceiver wsStatusReceiver;
 
     @Override
     public void onCreate() {
@@ -68,6 +80,7 @@ public class InputRuntimeService extends Service {
 
         // 初始化广播接收器
         initConnectControlReceiver();
+        initWebSocketStatusReceiver();
 
         // 初始化组件
         initializeComponents();
@@ -119,7 +132,16 @@ public class InputRuntimeService extends Service {
                 unregisterReceiver(connectControlReceiver);
                 connectControlReceiver = null;
             } catch (Exception e) {
-                Log.e(TAG, "Error unregistering broadcast receiver: " + e.getMessage());
+                Log.e(TAG, "Error unregistering connect control receiver: " + e.getMessage());
+            }
+        }
+        
+        if (wsStatusReceiver != null) {
+            try {
+                unregisterReceiver(wsStatusReceiver);
+                wsStatusReceiver = null;
+            } catch (Exception e) {
+                Log.e(TAG, "Error unregistering WebSocket status receiver: " + e.getMessage());
             }
         }
 
@@ -195,6 +217,35 @@ public class InputRuntimeService extends Service {
         filter.addAction("com.linecat.wmmtcontroller.ACTION_STOP_CONNECT");
         registerReceiver(connectControlReceiver, filter);
     }
+    
+    /**
+     * 初始化WebSocket状态广播接收器
+     */
+    private void initWebSocketStatusReceiver() {
+        wsStatusReceiver = new android.content.BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                String action = intent.getAction();
+                if (action != null) {
+                    switch (action) {
+                        case RuntimeEvents.ACTION_WS_DISCONNECTED:
+                            Log.d(TAG, "Received WebSocket disconnected broadcast");
+                            // 检查是否是因为连接失败导致的断开
+                            // 如果当前尝试连接但未成功，显示连接错误
+                            if (webSocketClient != null && !webSocketClient.isConnected()) {
+                                showConnectionError();
+                            }
+                            break;
+                    }
+                }
+            }
+        };
+        
+        // 注册广播接收器
+        android.content.IntentFilter filter = new android.content.IntentFilter();
+        filter.addAction(RuntimeEvents.ACTION_WS_DISCONNECTED);
+        registerReceiver(wsStatusReceiver, filter);
+    }
 
     /**
      * 初始化组件
@@ -211,6 +262,11 @@ public class InputRuntimeService extends Service {
 
         // 创建输入采集器
         inputCollector = new InputCollector();
+
+        // 创建输入服务层组件
+        inputInterpreter = new InputInterpreter();
+        eventNormalizer = new EventNormalizer();
+        regionResolver = new RegionResolver(this);
 
         // 创建WebSocket客户端，使用配置的URL
         webSocketClient = new WebSocketClient(this, runtimeConfig.getWebSocketUrl());
@@ -259,6 +315,19 @@ public class InputRuntimeService extends Service {
         if (scriptEngine != null) {
             scriptEngine.shutdown();
         }
+        
+        // 清理输入服务层组件
+        if (inputInterpreter != null) {
+            inputInterpreter.reset();
+        }
+        
+        if (eventNormalizer != null) {
+            eventNormalizer.reset();
+        }
+        
+        if (regionResolver != null) {
+            regionResolver.reset();
+        }
     }
 
     /**
@@ -273,11 +342,29 @@ public class InputRuntimeService extends Service {
                     // 1. 采集原始输入
                     RawInput rawInput = inputCollector.collect();
 
-                    // 2. 更新脚本引擎
+                    // 2. 使用输入解释器将原始输入转换为标准化事件
+                    // 从区域解析器获取当前布局快照
+                    LayoutSnapshot currentLayout = regionResolver.getCurrentLayoutSnapshot();
+                    NormalizedEvent event = inputInterpreter.interpret(rawInput, currentLayout);
+                    
+                    // 3. 使用事件标准化器处理标准化事件
+                    if (event != null) {
+                        eventNormalizer.processEvent(event);
+                        
+                        // 4. 将处理后的事件发送到JS层
+                        NormalizedEvent normalizedEvent;
+                        while ((normalizedEvent = eventNormalizer.getNextEvent()) != null) {
+                            if (scriptEngine instanceof JsInputScriptEngine) {
+                                ((JsInputScriptEngine) scriptEngine).sendNormalizedEventToJs(normalizedEvent);
+                            }
+                        }
+                    }
+
+                    // 5. 更新脚本引擎（保留原有逻辑，确保兼容旧版本脚本）
                     InputState inputState = new InputState();
                     boolean updateSuccess = scriptEngine.update(rawInput, inputState);
 
-                    // 3. 处理自动回滚
+                    // 6. 处理自动回滚
                     if (!updateSuccess) {
                         // 发送运行时错误广播
                         Intent errorIntent = new Intent(RuntimeEvents.ACTION_RUNTIME_ERROR);
@@ -292,18 +379,18 @@ public class InputRuntimeService extends Service {
                         }
                     }
 
-                    // 4. 设置单调递增的 frameId
+                    // 7. 设置单调递增的 frameId
                     inputState.setFrameId(frameIdCounter);
                     // 递增 frameId，确保下次生成更大的值
                     frameIdCounter++;
 
-                    // 5. 发送输入状态到WebSocket
+                    // 8. 发送输入状态到WebSocket
                     webSocketClient.sendInputState(inputState);
 
-                    // 6. 更新浮窗状态
+                    // 9. 更新浮窗状态
                     updateFloatWindowStatus(frameIdCounter - 1, updateSuccess);
 
-                    // 7. 等待下一帧
+                    // 10. 等待下一帧
                     Thread.sleep(16); // 约60 FPS
 
                 } catch (Exception e) {
@@ -318,6 +405,8 @@ public class InputRuntimeService extends Service {
             Log.d(TAG, "Main loop stopped");
         });
 
+        // 设置运行标志为true，确保主循环持续运行
+        isRunning = true;
         mainLoopThread.start();
     }
 
@@ -393,5 +482,17 @@ public class InputRuntimeService extends Service {
      */
     public void unloadCurrentProfile() {
         profileManager.unloadCurrentProfile();
+    }
+    
+    /**
+     * 显示连接错误提示
+     */
+    private void showConnectionError() {
+        // 使用Handler在UI线程显示错误提示
+        uiHandler.post(() -> {
+            if (floatWindowManager != null) {
+                floatWindowManager.showConnectionError();
+            }
+        });
     }
 }

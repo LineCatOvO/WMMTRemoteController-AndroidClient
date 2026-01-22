@@ -120,13 +120,27 @@ public class WebSocketClient {
                     Intent intent = new Intent(RuntimeEvents.ACTION_WS_DISCONNECTED);
                     context.sendBroadcast(intent);
                     
+                    // 确保webSocket被正确清理
+                    if (WebSocketClient.this.webSocket != null) {
+                        WebSocketClient.this.webSocket.close(1000, "Connection failed");
+                        WebSocketClient.this.webSocket = null;
+                    }
+                    
                     // 不自动重连，等待用户手动触发
                 }
             });
             
-            Log.d(TAG, "WebSocket connection started");
+            Log.d(TAG, "WebSocket connection started to " + serverUrl);
         } catch (URISyntaxException e) {
+            isConnected = false;
             Log.e(TAG, "Invalid WebSocket URI: " + serverUrl, e);
+            
+            // 发送WebSocket连接失败广播
+            Intent intent = new Intent(RuntimeEvents.ACTION_WS_DISCONNECTED);
+            context.sendBroadcast(intent);
+        } catch (Exception e) {
+            isConnected = false;
+            Log.e(TAG, "Unexpected error when connecting WebSocket: " + e.getMessage(), e);
             
             // 发送WebSocket连接失败广播
             Intent intent = new Intent(RuntimeEvents.ACTION_WS_DISCONNECTED);

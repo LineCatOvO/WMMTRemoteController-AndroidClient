@@ -12,8 +12,9 @@ import com.linecat.wmmtcontroller.model.RawInput;
 /**
  * 输入采集器
  * 负责采集原始输入数据，包括传感器、触摸、按键等
+ * 实现RawInputCollector接口，直接与Android系统交互
  */
-public class InputCollector {
+public class InputCollector implements RawInputCollector {
     private static final String TAG = "InputCollector";
     
     private Context context;
@@ -188,6 +189,63 @@ public class InputCollector {
                     break;
                 */
             }
+        }
+    }
+    
+    // ===== RawInputCollector 接口实现 =====
+    
+    @Override
+    public void onTouch(android.view.MotionEvent event) {
+        // 处理触摸事件
+        // 从MotionEvent中提取触摸状态和坐标
+        boolean pressed = event.getAction() != android.view.MotionEvent.ACTION_UP && 
+                         event.getAction() != android.view.MotionEvent.ACTION_CANCEL;
+        
+        float x = event.getX();
+        float y = event.getY();
+        
+        // 更新触摸输入
+        updateTouch(pressed, x, y);
+    }
+    
+    @Override
+    public void onKey(android.view.KeyEvent event) {
+        // 处理按键事件
+        // 从KeyEvent中提取按键状态和名称
+        boolean pressed = event.getAction() == android.view.KeyEvent.ACTION_DOWN;
+        String buttonName = getButtonName(event.getKeyCode());
+        
+        if (buttonName != null) {
+            // 更新按钮输入
+            updateButton(buttonName, pressed);
+        }
+    }
+    
+    @Override
+    public void onGamepad(android.view.InputEvent event) {
+        // 处理游戏手柄事件
+        // 目前暂未实现，只记录日志
+        Log.d(TAG, "onGamepad: " + event);
+    }
+    
+    /**
+     * 根据按键代码获取按钮名称
+     * @param keyCode 按键代码
+     * @return 按钮名称，找不到返回null
+     */
+    private String getButtonName(int keyCode) {
+        // 简单的按键映射，实际应用中应该根据配置进行映射
+        switch (keyCode) {
+            case android.view.KeyEvent.KEYCODE_A:
+                return "A";
+            case android.view.KeyEvent.KEYCODE_B:
+                return "B";
+            case android.view.KeyEvent.KEYCODE_C:
+                return "C";
+            case android.view.KeyEvent.KEYCODE_D:
+                return "D";
+            default:
+                return null;
         }
     }
     

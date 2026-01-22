@@ -12,6 +12,7 @@ import android.view.WindowManager;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.linecat.wmmtcontroller.R;
 import com.linecat.wmmtcontroller.model.ConnectionInfo;
@@ -171,6 +172,14 @@ public class FloatWindowManager {
         // 开始连接按钮点击事件
         floatView.findViewById(R.id.btn_start_connect).setOnClickListener(v -> {
             Log.d(TAG, "Start connect button clicked");
+            
+            // 检查连接信息是否完整
+            if (!checkConnectionInfo()) {
+                Toast.makeText(context, "请先填写完整的连接信息", Toast.LENGTH_SHORT).show();
+                hidePopupMenu();
+                return;
+            }
+            
             // 发送开始连接广播
             Intent intent = new Intent("com.linecat.wmmtcontroller.ACTION_START_CONNECT");
             context.sendBroadcast(intent);
@@ -386,6 +395,45 @@ public class FloatWindowManager {
         // 新设计中状态文本不再直接显示在浮窗上
         // 可以根据需要添加状态指示逻辑
         Log.d(TAG, "Float window status updated: " + status);
+    }
+    
+    /**
+     * 检查连接信息是否完整
+     * @return true if connection info is complete, false otherwise
+     */
+    private boolean checkConnectionInfo() {
+        // 从RuntimeConfig获取当前连接信息
+        RuntimeConfig runtimeConfig = new RuntimeConfig(context);
+        ConnectionInfo connectionInfo = runtimeConfig.getDefaultConnectionInfo();
+        
+        if (connectionInfo == null) {
+            Log.w(TAG, "No connection info found");
+            return false;
+        }
+        
+        String address = connectionInfo.getAddress();
+        int port = connectionInfo.getPort();
+        
+        // 检查地址是否为空或无效
+        if (address == null || address.trim().isEmpty()) {
+            Log.w(TAG, "Address is empty");
+            return false;
+        }
+        
+        // 检查端口是否在有效范围内
+        if (port < 1 || port > 65535) {
+            Log.w(TAG, "Port is invalid: " + port);
+            return false;
+        }
+        
+        return true;
+    }
+    
+    /**
+     * 显示连接错误提示
+     */
+    public void showConnectionError() {
+        Toast.makeText(context, "连接失败，请检查服务器地址和端口", Toast.LENGTH_SHORT).show();
     }
     
     /**

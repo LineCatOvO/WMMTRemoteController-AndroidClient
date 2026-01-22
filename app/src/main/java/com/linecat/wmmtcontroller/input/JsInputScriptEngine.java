@@ -290,28 +290,82 @@ public class JsInputScriptEngine implements InputScriptEngine {
     private String generateHtml(String scriptCode) {
         return "<!DOCTYPE html>" +
                "<html><head><meta charset='UTF-8'><script>" +
-               "// JavaScript Runtime Environment\n" +
-               "// 全局对象定义\n" +
+               "// JavaScript Runtime Environment - 分层架构实现\n" +
+               
+               "// ========== Layer 1: Environment Layer (宿主层) ==========\n" +
+               "// 提供IO、绘制、时间、日志等基础服务\n" +
+               "// 不包含任何输入逻辑\n" +
+               "const Env = {\n" +
+               "    now: function() { return android.getTimestamp(); },\n" +
+               "    log: function(msg) { android.debug(msg); },\n" +
+               "    sendKey: function(code, pressed) { if (pressed) { android.holdKey(code); } else { android.releaseKey(code); } },\n" +
+               "    sendAxis: function(id, value) { /* 轴事件处理，目前暂未实现 */ },\n" +
+               "    sendMacro: function(macroId) { /* 宏事件处理，目前暂未实现 */ }\n" +
+               "};\n" +
+               
+               "// ========== Layer 2: Core Input Logic (核心层) ==========\n" +
+               "// 负责输入核心逻辑，管理区域定义和事件绑定\n" +
+               "const InputCore = (() => {\n" +
+               "    const regions = new Map();\n" +
+               "    const bindings = new Map();\n" +
+               "    \n" +
+               "    function defineRegion(def) {\n" +
+               "        regions.set(def.id, def);\n" +
+               "    }\n" +
+               "    \n" +
+               "    function bind(regionId, handler) {\n" +
+               "        bindings.set(regionId, handler);\n" +
+               "    }\n" +
+               "    \n" +
+               "    function onEvent(event) {\n" +
+               "        const handler = bindings.get(event.region);\n" +
+               "        if (handler) {\n" +
+               "            try {\n" +
+               "                handler(event);\n" +
+               "            } catch (e) {\n" +
+               "                console.error('Error handling event:', e);\n" +
+               "            }\n" +
+               "        }\n" +
+               "    }\n" +
+               "    \n" +
+               "    return {\n" +
+               "        defineRegion,\n" +
+               "        bind,\n" +
+               "        onEvent\n" +
+               "    }\n" +
+               "})();\n" +
+               
+               "// ========== Layer 3: User Script Layer (用户层) ==========\n" +
+               "// 用户只能访问受控API，不能直接访问原始输入或平台细节\n" +
+               "const UserAPI = Object.freeze({\n" +
+               "    onButton: function(id, fn) { InputCore.bind(id, fn); },\n" +
+               "    sendKey: Env.sendKey,\n" +
+               "    sendAxis: Env.sendAxis,\n" +
+               "    now: Env.now,\n" +
+               "    log: Env.log\n" +
+               "});\n" +
+               
+               "// ========== 旧版本兼容层 ==========\n" +
+               "// 为了兼容旧版本脚本，保留原有的rawAccess和stateMutator接口\n" +
                "const rawAccess = {\n" +
                "    getFrameId: function() { return android.getFrameId(); },\n" +
                "    getTimestamp: function() { return android.getTimestamp(); },\n" +
                "    getAxis: function(axisName) { return android.getAxis(axisName); },\n" +
                "    isGamepadButtonPressed: function(buttonName) { return android.isGamepadButtonPressed(buttonName); },\n" +
-               "    getRawInput: function() { return rawInput; }\n" +
+               "    getRawInput: function() { return {\n" +
+               "        getGyroPitch: function() { return android.getGyroPitch(); },\n" +
+               "        getGyroRoll: function() { return android.getGyroRoll(); },\n" +
+               "        getGyroYaw: function() { return android.getGyroYaw(); },\n" +
+               "        isTouchPressed: function() { return android.isTouchPressed(); },\n" +
+               "        getTouchX: function() { return android.getTouchX(); },\n" +
+               "        getTouchY: function() { return android.getTouchY(); },\n" +
+               "        isButtonA: function() { return android.isButtonA(); },\n" +
+               "        isButtonB: function() { return android.isButtonB(); },\n" +
+               "        isButtonC: function() { return android.isButtonC(); },\n" +
+               "        isButtonD: function() { return android.isButtonD(); }\n" +
+               "    }; }\n" +
                "};\n" +
-               "// 原始输入对象，用于getRawInput方法\n" +
-               "const rawInput = {\n" +
-               "    getGyroPitch: function() { return android.getGyroPitch(); },\n" +
-               "    getGyroRoll: function() { return android.getGyroRoll(); },\n" +
-               "    getGyroYaw: function() { return android.getGyroYaw(); },\n" +
-               "    isTouchPressed: function() { return android.isTouchPressed(); },\n" +
-               "    getTouchX: function() { return android.getTouchX(); },\n" +
-               "    getTouchY: function() { return android.getTouchY(); },\n" +
-               "    isButtonA: function() { return android.isButtonA(); },\n" +
-               "    isButtonB: function() { return android.isButtonB(); },\n" +
-               "    isButtonC: function() { return android.isButtonC(); },\n" +
-               "    isButtonD: function() { return android.isButtonD(); }\n" +
-               "};\n" +
+               "\n" +
                "const stateMutator = {\n" +
                "    holdKey: function(key) { android.holdKey(key); },\n" +
                "    releaseKey: function(key) { android.releaseKey(key); },\n" +
@@ -319,7 +373,9 @@ public class JsInputScriptEngine implements InputScriptEngine {
                "    isKeyHeld: function(key) { return android.isKeyHeld(key); },\n" +
                "    pushEvent: function(eventType, eventData) { android.pushEvent(eventType, eventData); }\n" +
                "};\n" +
-               "// 隐藏HostServices，默认不注入\n" +
+               
+               "// ========== 用户脚本执行 ==========\n" +
+               "// 用户代码只能访问UserAPI，不能直接访问Env或InputCore\n" +
                scriptCode +
                "</script></head><body></body></html>";
     }
@@ -393,6 +449,71 @@ public class JsInputScriptEngine implements InputScriptEngine {
             event.getType().name(),
             event.getTimestamp()
         );
+    }
+    
+    /**
+     * 将NormalizedEvent转换为JSON字符串，用于发送到JS层
+     * @param event 标准化事件
+     * @return JSON字符串
+     */
+    private String normalizedEventToJson(NormalizedEvent event) {
+        if (event == null) {
+            return "null";
+        }
+        
+        String eventJson = "{";
+        
+        // 通用事件属性
+        eventJson += String.format("\"region\": \"%s\", ", event.getRegionId());
+        eventJson += String.format("\"type\": \"%s\", ", event.getType().name());
+        eventJson += String.format("\"timestamp\": %d", event.getTimestamp());
+        
+        // 事件类型特定属性
+        switch (event.getType()) {
+            case BUTTON:
+                ButtonEvent buttonEvent = (ButtonEvent) event;
+                eventJson += String.format(", \"pressed\": %b", buttonEvent.isPressed());
+                break;
+            case AXIS:
+                AxisEvent axisEvent = (AxisEvent) event;
+                eventJson += String.format(", \"valueX\": %.6f, \"valueY\": %.6f", axisEvent.getValueX(), axisEvent.getValueY());
+                break;
+            case GESTURE:
+                GestureEvent gestureEvent = (GestureEvent) event;
+                eventJson += String.format(", \"gestureType\": \"%s\", \"value1\": %.6f, \"value2\": %.6f, \"value3\": %.6f", 
+                    gestureEvent.getGestureType().name(), 
+                    gestureEvent.getValue1(), 
+                    gestureEvent.getValue2(), 
+                    gestureEvent.getValue3());
+                break;
+        }
+        
+        eventJson += "}";
+        return eventJson;
+    }
+    
+    /**
+     * 将标准化事件发送到JS层的InputCore.onEvent函数
+     * @param event 标准化事件
+     */
+    public void sendNormalizedEventToJs(NormalizedEvent event) {
+        if (state != EngineState.LOADED) {
+            return;
+        }
+        
+        uiHandler.post(() -> {
+            try {
+                String eventJson = normalizedEventToJson(event);
+                String jsCode = String.format(
+                    "if (typeof InputCore !== 'undefined' && typeof InputCore.onEvent === 'function') { InputCore.onEvent(%s); }",
+                    eventJson
+                );
+                webView.evaluateJavascript(jsCode, null);
+            } catch (Exception e) {
+                lastError = "RUNTIME_ERROR: " + e.getMessage();
+                state = EngineState.ERROR;
+            }
+        });
     }
     
     /**

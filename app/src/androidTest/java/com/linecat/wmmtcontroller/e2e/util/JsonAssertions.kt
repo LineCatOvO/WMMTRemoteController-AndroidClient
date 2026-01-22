@@ -174,4 +174,33 @@ object JsonAssertions {
         
         return true
     }
+    
+    /**
+     * Extract frameId from a WebSocket frame
+     * @param frame WebSocket frame JSON string
+     * @return frameId value
+     * @throws JSONException if frameId is not found or is not a number
+     */
+    fun extractFrameId(frame: String): Long {
+        val json = JSONObject(frame)
+        return json.getLong("frameId")
+    }
+    
+    /**
+     * Extract runtimeStatus from a WebSocket frame
+     * @param frame WebSocket frame JSON string
+     * @return runtimeStatus value, or null if not present
+     */
+    fun extractRuntimeStatus(frame: String): String? {
+        try {
+            val json = JSONObject(frame)
+            return if (json.has("runtimeStatus")) {
+                json.getString("runtimeStatus")
+            } else {
+                null
+            }
+        } catch (e: JSONException) {
+            return null
+        }
+    }
 }

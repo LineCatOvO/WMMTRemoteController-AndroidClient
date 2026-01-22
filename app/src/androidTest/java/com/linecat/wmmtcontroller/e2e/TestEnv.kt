@@ -1,12 +1,14 @@
 package com.linecat.wmmtcontroller.e2e
 
 import android.content.Context
+import android.content.Intent
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.linecat.wmmtcontroller.MainActivity
 import com.linecat.wmmtcontroller.e2e.util.MockWsServer
 import com.linecat.wmmtcontroller.e2e.util.RuntimeAwaiter
+import com.linecat.wmmtcontroller.service.InputRuntimeService
 import com.linecat.wmmtcontroller.service.RuntimeConfig
 import org.junit.After
 import org.junit.Before
@@ -17,7 +19,6 @@ import org.junit.runner.RunWith
  * Base test environment for all E2E tests
  * Provides shared setup and teardown functionality
  */
-@RunWith(AndroidJUnit4::class)
 open class TestEnv {
 
     protected val context: Context = ApplicationProvider.getApplicationContext()
@@ -44,6 +45,13 @@ open class TestEnv {
         runtimeConfig.setWebSocketUrl(mockWsServer.getWsUrl())
         runtimeConfig.setProfileId("official-profiles/wmmt_keyboard_basic")
         runtimeConfig.setUseScriptRuntime(true)
+
+        // Explicitly start InputRuntimeService
+        val serviceIntent = Intent(context, InputRuntimeService::class.java)
+        context.startService(serviceIntent)
+
+        // Wait for Runtime to start completely
+        runtimeAwaiter.awaitRuntimeStarted()
     }
 
     @After

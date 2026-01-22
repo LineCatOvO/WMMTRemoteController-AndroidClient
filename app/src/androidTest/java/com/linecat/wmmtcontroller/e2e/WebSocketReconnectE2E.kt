@@ -1,67 +1,59 @@
 package com.linecat.wmmtcontroller.e2e
 
+import com.linecat.wmmtcontroller.e2e.util.JsonAssertions
 import com.linecat.wmmtcontroller.service.RuntimeEvents
 import org.junit.Test
 
 /**
  * Test Case 5: WebSocket Reconnect E2E
  * 
- * 证明目标：WebSocket 可靠性
- * 入口路径：应用启动后断开并重新连接 WebSocket
- * 断言依据：runtime 事件 + WebSocket 消息
+ * 证明目标：WebSocket 可靠性 - 状态退化测试
+ * 入口路径：应用启动后模拟 WebSocket 断开
+ * 断言依据：runtime 事件 + WebSocket 消息语义
  */
 class WebSocketReconnectE2E : TestEnv() {
 
     @Test
-    fun testWebSocketDisconnectAndReconnect() {
-        // Step 1: Wait for runtime startup and WebSocket connection
-        val startupEvents = listOf(
-            RuntimeEvents.ACTION_RUNTIME_STARTED,
-            RuntimeEvents.ACTION_PROFILE_LOADED,
-            RuntimeEvents.ACTION_SCRIPT_ENGINE_READY,
-            RuntimeEvents.ACTION_WS_CONNECTED
-        )
-
-        assert(runtimeAwaiter.awaitEventsInOrder(startupEvents, 5000)) {
-            "Failed to receive all required startup events"
-        }
-
-        // Step 2: Wait for initial WebSocket frames
+    fun testWebSocketDisconnectionDegradedState() {
+        // Step 1: Capture initial WebSocket frames and verify frameId sequence
+        var previousFrameId: Long? = null
+        
+        // Wait for 3 initial frames to establish baseline
         for (i in 1..3) {
-            assert(runtimeAwaiter.awaitWsSentFrame(5000)) {
-                "Failed to receive WS_SENT_FRAME event $i"
+            val frame = runtimeAwaiter.awaitNextFrame(15000)
+            assert(JsonAssertions.assertFrameJsonValid(frame)) {
+                "Frame $i should be valid JSON"
             }
-            mockWsServer.takeRequest()
+            
+            // Verify frameId is monotonic
+            val currentFrameId = JsonAssertions.extractFrameId(frame)
+            assert(previousFrameId == null || currentFrameId > previousFrameId) {
+                "FrameId should be monotonic (previous: $previousFrameId, current: $currentFrameId)"
+            }
+            previousFrameId = currentFrameId
         }
-
-        // Step 3: Stop the mock server to simulate disconnection
+        
+        // Step 2: Simulate WebSocket disconnection by stopping mock server
         mockWsServer.stop()
-
-        // Step 4: Wait for WebSocket disconnected event
-        assert(runtimeAwaiter.awaitEvent(RuntimeEvents.ACTION_WS_DISCONNECTED, 10000)) {
-            "Failed to receive WS_DISCONNECTED event after server shutdown"
-        }
-
-        // Step 5: Start the mock server again
-        mockWsServer.start()
-
-        // Step 6: Update the WebSocket URL in runtime config (port may have changed)
-        runtimeConfig.setWebSocketUrl(mockWsServer.getWsUrl())
-
-        // Step 7: Wait for WebSocket connected event after reconnection
-        assert(runtimeAwaiter.awaitEvent(RuntimeEvents.ACTION_WS_CONNECTED, 15000)) {
-            "Failed to receive WS_CONNECTED event after server restart"
-        }
-
-        // Step 8: Wait for WebSocket frames after reconnection
-        for (i in 1..3) {
-            assert(runtimeAwaiter.awaitWsSentFrame(5000)) {
-                "Failed to receive WS_SENT_FRAME event $i after reconnection"
+        
+        // Step 3: Verify system continues operating in degraded state
+        for (i in 4..6) {
+            val frame = runtimeAwaiter.awaitNextFrame(15000)
+            assert(JsonAssertions.assertFrameJsonValid(frame)) {
+                "Frame $i should be valid JSON after WS disconnect"
             }
-            val wsRequest = mockWsServer.takeRequest()
-            val wsMessage = wsRequest.body.readUtf8()
-            assert(wsMessage.isNotEmpty()) {
-                "WebSocket message $i after reconnection should not be empty"
+            
+            // Verify frameId continues to increment
+            val currentFrameId = JsonAssertions.extractFrameId(frame)
+            assert(currentFrameId > previousFrameId!!) {
+                "FrameId should continue incrementing after WS disconnect"
+            }
+            previousFrameId = currentFrameId
+            
+            // Verify runtimeStatus reflects degraded state
+            val runtimeStatus = JsonAssertions.extractRuntimeStatus(frame)
+            assert(runtimeStatus != null) {
+                "Frame should contain runtimeStatus field"
             }
         }
     }

@@ -6,6 +6,10 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+
     <uses-feature android:name="android.hardware.sensor.gyroscope" android:required="true" />
 
     <application
@@ -17,7 +21,7 @@
             android:roundIcon="@mipmap/ic_launcher_round"
             android:supportsRtl="true"
             android:theme="@style/Theme.WMMTController">
-        
+
         <!-- 主活动 -->
         <activity
                 android:name=".MainActivity"
@@ -29,15 +33,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        
+
         <!-- 传感器服务 -->
         <service
                 android:name=".service.SensorService"
                 android:exported="false" />
-        
-        <!-- WebSocket服务 -->
+
+        <!-- 输入运行时服务 -->
         <service
-                android:name=".websocket.WebSocketService"
+                android:name=".service.InputRuntimeService"
+                android:foregroundServiceType="connectedDevice"
                 android:exported="false" />
     </application>
 

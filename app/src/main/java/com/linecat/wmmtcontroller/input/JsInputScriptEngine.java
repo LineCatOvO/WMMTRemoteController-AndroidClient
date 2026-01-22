@@ -144,10 +144,11 @@ public class JsInputScriptEngine implements InputScriptEngine {
     @Override
     public boolean update(RawInput rawInput, InputState inputState) {
         if (state != EngineState.LOADED) {
-            lastError = "Script not loaded or in error state";
-            // 确保所有按键释放，防止粘键
+            // 脚本未加载或处于错误状态时，仅释放按键，不返回错误
+            // 避免在WebSocket未连接时导致浮窗显示错误
             inputState.clearAllKeys();
-            return false;
+            // 脚本未加载是正常状态，不是错误，返回true
+            return true;
         }
         
         long startTime = System.currentTimeMillis();

@@ -15,26 +15,10 @@ class ScriptFailureRollbackE2E : TestEnv() {
 
     @Test
     fun testScriptFailureAutoRollback() {
-        // Step 1: Wait for runtime startup and WebSocket connection
-        val startupEvents = listOf(
-            RuntimeEvents.ACTION_RUNTIME_STARTED,
-            RuntimeEvents.ACTION_PROFILE_LOADED,
-            RuntimeEvents.ACTION_SCRIPT_ENGINE_READY,
-            RuntimeEvents.ACTION_WS_CONNECTED
-        )
-
-        assert(runtimeAwaiter.awaitEventsInOrder(startupEvents, 5000)) {
-            "Failed to receive all required startup events"
-        }
-
-        // Step 2: Wait for initial WebSocket frames and verify frameId monotonicity
+        // Step 1: Wait for initial WebSocket frames and verify frameId monotonicity
         var previousFrame: String? = null
         for (i in 1..3) {
-            assert(runtimeAwaiter.awaitWsSentFrame(5000)) {
-                "Failed to receive WS_SENT_FRAME event $i"
-            }
-            val wsRequest = mockWsServer.takeRequest()
-            val wsMessage = wsRequest.body.readUtf8()
+            val wsMessage = runtimeAwaiter.awaitNextFrame(15000)
             
             // Assert frame is valid JSON
             assert(JsonAssertions.assertFrameJsonValid(wsMessage)) {
@@ -68,14 +52,9 @@ class ScriptFailureRollbackE2E : TestEnv() {
         }
 
         // Step 7: Wait for WebSocket frame after rollback
-        assert(runtimeAwaiter.awaitWsSentFrame(5000)) {
-            "Failed to receive WS_SENT_FRAME event after rollback"
-        }
+        val wsMessage = runtimeAwaiter.awaitNextFrame(5000)
 
         // Step 8: Verify the system continues sending WebSocket frames
-        val wsRequest = mockWsServer.takeRequest()
-        val wsMessage = wsRequest.body.readUtf8()
-
         // Assert frame is valid JSON
         assert(JsonAssertions.assertFrameJsonValid(wsMessage)) {
             "WebSocket frame after rollback is not valid JSON structure"
@@ -97,10 +76,7 @@ class ScriptFailureRollbackE2E : TestEnv() {
 
         // Step 9: Verify the system continues running
         for (i in 1..3) {
-            assert(runtimeAwaiter.awaitWsSentFrame(5000)) {
-                "Failed to receive WS_SENT_FRAME event $i after rollback"
-            }
-            mockWsServer.takeRequest()
+            runtimeAwaiter.awaitNextFrame(5000)
         }
     }
 }

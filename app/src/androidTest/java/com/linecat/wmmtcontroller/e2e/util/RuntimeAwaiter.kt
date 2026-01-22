@@ -7,6 +7,7 @@ import android.content.IntentFilter
 import androidx.test.core.app.ApplicationProvider
 import com.linecat.wmmtcontroller.service.RuntimeEvents
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
 /**
@@ -17,6 +18,23 @@ class RuntimeAwaiter {
 
     private val context = ApplicationProvider.getApplicationContext<Context>()
     private var receiver: BroadcastReceiver? = null
+    private val frameQueue = LinkedBlockingQueue<String>()
+    
+    private val wsSentFrameReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == RuntimeEvents.ACTION_WS_SENT_FRAME) {
+                val message = intent.getStringExtra(RuntimeEvents.EXTRA_WS_MESSAGE)
+                if (message != null) {
+                    frameQueue.offer(message)
+                }
+            }
+        }
+    }
+    
+    init {
+        val filter = IntentFilter(RuntimeEvents.ACTION_WS_SENT_FRAME)
+        context.registerReceiver(wsSentFrameReceiver, filter)
+    }
 
     /**
      * Wait for a specific runtime event
@@ -111,5 +129,18 @@ class RuntimeAwaiter {
      */
     fun awaitProfileRollback(timeoutMs: Long = 5000): Boolean {
         return awaitEvent(RuntimeEvents.ACTION_PROFILE_ROLLBACK, timeoutMs)
+    }
+    
+    /**
+     * Wait for the next WebSocket frame and return its content
+     * @param timeoutMs Timeout in milliseconds
+     * @return The WebSocket frame content
+     */
+    fun awaitNextFrame(timeoutMs: Long = 10000): String {
+        val frameContent = frameQueue.poll(timeoutMs, TimeUnit.MILLISECONDS)
+        
+        checkNotNull(frameContent) { "Timed out waiting for next WebSocket frame" }
+        
+        return frameContent
     }
 }

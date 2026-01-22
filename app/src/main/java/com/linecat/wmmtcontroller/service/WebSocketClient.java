@@ -51,6 +51,19 @@ public class WebSocketClient {
         client = new OkHttpClient();
         gson = new Gson();
         
+        // 初始化时不直接连接，仅准备客户端
+        Log.d(TAG, "WebSocketClient initialized, ready to connect");
+    }
+    
+    /**
+     * 手动开始连接WebSocket
+     */
+    public void connect() {
+        if (isConnected) {
+            Log.d(TAG, "WebSocket already connected, skipping connect");
+            return;
+        }
+        
         try {
             URI serverUri = new URI(serverUrl);
             Request request = new Request.Builder()
@@ -107,15 +120,30 @@ public class WebSocketClient {
                     Intent intent = new Intent(RuntimeEvents.ACTION_WS_DISCONNECTED);
                     context.sendBroadcast(intent);
                     
-                    // 尝试重连
-                    reconnect();
+                    // 不自动重连，等待用户手动触发
                 }
             });
+            
+            Log.d(TAG, "WebSocket connection started");
         } catch (URISyntaxException e) {
             Log.e(TAG, "Invalid WebSocket URI: " + serverUrl, e);
+            
+            // 发送WebSocket连接失败广播
+            Intent intent = new Intent(RuntimeEvents.ACTION_WS_DISCONNECTED);
+            context.sendBroadcast(intent);
         }
-        
-        Log.d(TAG, "WebSocketClient initialized");
+    }
+    
+    /**
+     * 断开WebSocket连接
+     */
+    public void disconnect() {
+        if (webSocket != null) {
+            webSocket.close(1000, "Manual disconnect");
+            webSocket = null;
+        }
+        isConnected = false;
+        Log.d(TAG, "WebSocket disconnected manually");
     }
     
     /**
@@ -123,19 +151,19 @@ public class WebSocketClient {
      * @param inputState 输入状态
      */
     public void sendInputState(InputState inputState) {
-        if (!isConnected || webSocket == null) {
-            Log.w(TAG, "WebSocket not connected, skipping send");
-            return;
-        }
-        
         try {
             // 将输入状态转换为JSON
             String json = gson.toJson(inputState);
             
-            // 发送WebSocket消息
-            webSocket.send(json);
+            // 尝试发送WebSocket消息
+            if (isConnected && webSocket != null) {
+                webSocket.send(json);
+            } else {
+                // 降低日志级别，避免日志刷屏
+                Log.d(TAG, "WebSocket not connected, skipping send but still broadcasting event");
+            }
             
-            // 发送WebSocket发送帧成功广播
+            // 发送WebSocket发送帧成功广播，无论WebSocket是否连接
             Intent intent = new Intent(RuntimeEvents.ACTION_WS_SENT_FRAME);
             // 从json中提取frameId（如果存在），否则使用时间戳作为frameId
             long frameId = System.currentTimeMillis();
@@ -163,29 +191,11 @@ public class WebSocketClient {
     
     /**
      * 重连WebSocket
-     * 使用指数退避算法计算重连延迟
+     * 不再自动重连，需要用户手动触发
      */
     private void reconnect() {
-        // 递增重连尝试次数
-        reconnectAttempts++;
-        
-        // 计算指数退避延迟：5秒 * (2 ^ (reconnectAttempts - 1))
-        long calculatedDelay = 5000 * (long) Math.pow(2, reconnectAttempts - 1);
-        
-        // 确保延迟不超过最大值
-        final long delay = Math.min(calculatedDelay, MAX_RECONNECT_DELAY);
-        
-        Log.d(TAG, "Attempting to reconnect WebSocket (attempt " + reconnectAttempts + ") with delay " + delay + "ms...");
-        
-        // 延迟重连，避免频繁尝试
-        new Thread(() -> {
-            try {
-                Thread.sleep(delay);
-                init();
-            } catch (InterruptedException e) {
-                Log.e(TAG, "Reconnect interrupted", e);
-            }
-        }).start();
+        Log.d(TAG, "Reconnect requested, but auto-reconnect is disabled. Please use manual connect.");
+        // 不执行自动重连，等待用户手动触发
     }
     
     /**

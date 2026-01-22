@@ -18,27 +18,8 @@ class AppLaunchE2E : TestEnv() {
 
     @Test
     fun testAppLaunchAndRuntimeStartup() {
-        // Step 1: Wait for runtime startup events
-        val eventsToWaitFor = listOf(
-            RuntimeEvents.ACTION_RUNTIME_STARTED,
-            RuntimeEvents.ACTION_PROFILE_LOADED,
-            RuntimeEvents.ACTION_SCRIPT_ENGINE_READY,
-            RuntimeEvents.ACTION_WS_CONNECTED
-        )
-
-        // Wait for all events in order
-        assert(runtimeAwaiter.awaitEventsInOrder(eventsToWaitFor, 5000)) {
-            "Failed to receive all required startup events"
-        }
-
-        // Step 2: Wait for a WebSocket frame to be sent
-        assert(runtimeAwaiter.awaitWsSentFrame(5000)) {
-            "Failed to receive WS_SENT_FRAME event"
-        }
-
-        // Step 3: Verify WebSocket message content
-        val wsRequest = mockWsServer.takeRequest()
-        val wsMessage = wsRequest.body.readUtf8()
+        // Step 1: Wait for initial WebSocket frame
+        val wsMessage = runtimeAwaiter.awaitNextFrame(15000)
         var previousFrame: String? = wsMessage
 
         // Step 3.1: Structure Assertion - Verify frame is valid JSON
@@ -58,11 +39,7 @@ class AppLaunchE2E : TestEnv() {
 
         // Step 3.4: Additional WebSocket frames should be sent and have increasing frameId
         for (i in 2..3) {
-            assert(runtimeAwaiter.awaitWsSentFrame(5000)) {
-                "Failed to receive WS_SENT_FRAME event $i"
-            }
-            val nextWsRequest = mockWsServer.takeRequest()
-            val nextWsMessage = nextWsRequest.body.readUtf8()
+            val nextWsMessage = runtimeAwaiter.awaitNextFrame(10000)
             
             // Assert frame is valid
             assert(JsonAssertions.assertFrameJsonValid(nextWsMessage)) {

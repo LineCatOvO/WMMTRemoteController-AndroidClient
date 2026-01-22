@@ -3,6 +3,7 @@ package com.linecat.wmmtcontroller.e2e.util
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.RecordedRequest
 import java.io.IOException
+import java.util.concurrent.TimeUnit
 
 /**
  * Mock WebSocket Server for E2E testing
@@ -49,7 +50,7 @@ class MockWsServer {
      */
     @Throws(InterruptedException::class)
     fun takeRequest(timeoutMs: Long = 5000): RecordedRequest {
-        val request = mockServer.takeRequest(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+        val request = mockServer.takeRequest(timeoutMs, TimeUnit.MILLISECONDS)
         checkNotNull(request) { "No WebSocket message received within timeout: ${timeoutMs}ms" }
         return request
     }

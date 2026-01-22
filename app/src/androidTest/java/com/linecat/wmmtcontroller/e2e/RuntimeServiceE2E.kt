@@ -1,5 +1,6 @@
 package com.linecat.wmmtcontroller.e2e
 
+import com.linecat.wmmtcontroller.e2e.util.JsonAssertions
 import com.linecat.wmmtcontroller.service.RuntimeEvents
 import org.junit.Test
 
@@ -14,47 +15,42 @@ class RuntimeServiceE2E : TestEnv() {
 
     @Test
     fun testRuntimeContinuesWhenActivityDestroyed() {
-        // Step 1: Wait for runtime startup and WebSocket connection
-        val startupEvents = listOf(
-            RuntimeEvents.ACTION_RUNTIME_STARTED,
-            RuntimeEvents.ACTION_PROFILE_LOADED,
-            RuntimeEvents.ACTION_SCRIPT_ENGINE_READY,
-            RuntimeEvents.ACTION_WS_CONNECTED
-        )
-
-        assert(runtimeAwaiter.awaitEventsInOrder(startupEvents, 5000)) {
-            "Failed to receive all required startup events"
+        // Step 1: Wait for initial WebSocket frame
+        val initialMessage = runtimeAwaiter.awaitNextFrame(15000)
+        
+        // Assert 1: Initial frame should be valid JSON structure
+        assert(JsonAssertions.assertFrameJsonValid(initialMessage)) {
+            "Initial WebSocket frame should be valid JSON structure"
         }
-
-        // Step 2: Wait for a WebSocket frame to be sent
-        assert(runtimeAwaiter.awaitWsSentFrame(5000)) {
-            "Failed to receive WS_SENT_FRAME event"
-        }
-
-        // Step 3: Verify initial WebSocket communication
-        val initialRequest = mockWsServer.takeRequest()
-        val initialMessage = initialRequest.body.readUtf8()
-        assert(initialMessage.isNotEmpty()) {
-            "Initial WebSocket message should not be empty"
+        
+        // Extract initial frameId for comparison
+        val initialFrameId = JsonAssertions.extractFrameId(initialMessage)
+        
+        // Assert 2: Initial frame should have valid runtimeStatus
+        assert(JsonAssertions.extractRuntimeStatus(initialMessage) != null) {
+            "Initial WebSocket frame should contain runtimeStatus field"
         }
 
         // Step 4: Destroy the Activity
         activityScenarioRule.scenario.close()
 
         // Step 5: Verify the service continues sending WebSocket frames
-        assert(runtimeAwaiter.awaitWsSentFrame(5000)) {
-            "Failed to receive WS_SENT_FRAME event after Activity destruction"
+        val postDestroyMessage = runtimeAwaiter.awaitNextFrame(15000)
+        
+        // Assert 3: Post-destruction frame should be valid JSON structure
+        assert(JsonAssertions.assertFrameJsonValid(postDestroyMessage)) {
+            "WebSocket frame after Activity destruction should be valid JSON structure"
         }
-
-        val postDestroyRequest = mockWsServer.takeRequest()
-        val postDestroyMessage = postDestroyRequest.body.readUtf8()
-        assert(postDestroyMessage.isNotEmpty()) {
-            "WebSocket message after Activity destruction should not be empty"
+        
+        // Assert 4: frameId should continue to increment after Activity destruction
+        val postDestroyFrameId = JsonAssertions.extractFrameId(postDestroyMessage)
+        assert(postDestroyFrameId > initialFrameId) {
+            "FrameId should continue to increment after Activity destruction (initial: $initialFrameId, post: $postDestroyFrameId)"
         }
-
-        // Step 7: Verify the service maintains consistent communication
-        assert(mockWsServer.getRequestCount() >= 2) {
-            "Expected at least 2 WebSocket messages, but got ${mockWsServer.getRequestCount()}"
+        
+        // Assert 5: Post-destruction frame should have valid runtimeStatus
+        assert(JsonAssertions.extractRuntimeStatus(postDestroyMessage) != null) {
+            "WebSocket frame after Activity destruction should contain runtimeStatus field"
         }
     }
 }

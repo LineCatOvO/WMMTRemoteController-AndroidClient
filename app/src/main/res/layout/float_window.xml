@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <!-- 圆形主入口按钮 -->
+    <LinearLayout
+        android:id="@+id/ll_circle_entry"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="@drawable/circle_button"
+        android:elevation="8dp"
+        android:layout_margin="8dp">
+
+        <TextView
+            android:id="@+id/tv_entry_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="W"
+            android:textSize="24sp"
+            android:textColor="@android:color/white"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- 弹出菜单容器 -->
+    <LinearLayout
+        android:id="@+id/ll_popup_menu"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@android:color/white"
+        android:elevation="12dp"
+        android:visibility="gone"
+        android:layout_marginTop="70dp">
+
+        <Button
+            android:id="@+id/btn_start_connect"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:text="开始连接"
+            android:textColor="@android:color/black"
+            android:backgroundTint="@android:color/holo_green_light"
+            android:layout_margin="8dp" />
+
+        <Button
+            android:id="@+id/btn_stop_connect"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:text="断开连接"
+            android:textColor="@android:color/black"
+            android:backgroundTint="@android:color/holo_red_light"
+            android:layout_margin="8dp" />
+
+        <Button
+            android:id="@+id/btn_menu_settings"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:text="设置"
+            android:textColor="@android:color/black"
+            android:backgroundTint="@android:color/holo_blue_light"
+            android:layout_margin="8dp" />
+    </LinearLayout>
+</FrameLayout>

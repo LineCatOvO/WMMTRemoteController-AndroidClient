@@ -1,7 +1,9 @@
 package com.linecat.wmmtcontroller.service;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.util.Log;
 
 import com.linecat.wmmtcontroller.model.InputState;
@@ -23,9 +25,37 @@ public class TransportController {
     private long lastRtt = 0;
     private long lastMessageTime = 0;
     
+    // 连接信息更新广播接收器
+    private final BroadcastReceiver connectionInfoUpdateReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (RuntimeEvents.ACTION_CONNECTION_INFO_UPDATED.equals(intent.getAction())) {
+                Log.d(TAG, "Connection info updated, refreshing WebSocket URL");
+                // 获取新的WebSocket URL
+                String newUrl = runtimeConfig.getWebSocketUrl();
+                Log.d(TAG, "New WebSocket URL: " + newUrl);
+                
+                // 更新WebSocket URL
+                updateWebSocketUrl(newUrl);
+                
+                // 如果当前已连接，断开并重新连接
+                if (isConnected()) {
+                    Log.d(TAG, "Reconnecting with new URL");
+                    disconnect();
+                    connect();
+                }
+            }
+        }
+    };
+    
     public TransportController(Context context, RuntimeConfig runtimeConfig) {
         this.context = context;
         this.runtimeConfig = runtimeConfig;
+        // 注册连接信息更新广播接收器
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(RuntimeEvents.ACTION_CONNECTION_INFO_UPDATED);
+        context.registerReceiver(connectionInfoUpdateReceiver, filter);
+        
         this.webSocketClient = new WebSocketClient(context, runtimeConfig.getWebSocketUrl());
     }
 
@@ -122,6 +152,12 @@ public class TransportController {
      * 清理资源
      */
     public void cleanup() {
+        // 注销广播接收器
+        try {
+            context.unregisterReceiver(connectionInfoUpdateReceiver);
+        } catch (Exception e) {
+            Log.e(TAG, "Error unregistering connection info update receiver: " + e.getMessage());
+        }
         webSocketClient.shutdown();
         Log.d(TAG, "Transport controller cleaned up");
     }

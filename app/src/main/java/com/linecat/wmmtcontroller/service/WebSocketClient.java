@@ -175,8 +175,21 @@ public class WebSocketClient {
      */
     public void sendInputState(InputState inputState) {
         try {
-            // 将输入状态转换为JSON
-            String json = gson.toJson(inputState);
+            // 创建包含类型字段的消息对象
+            class InputMessage {
+                private String type = "input_state";
+                private InputState data;
+                
+                public InputMessage(InputState data) {
+                    this.data = data;
+                }
+            }
+            
+            // 包装输入状态
+            InputMessage message = new InputMessage(inputState);
+            
+            // 将消息转换为JSON
+            String json = gson.toJson(message);
             
             // 尝试发送WebSocket消息
             if (isConnected && webSocket != null) {
@@ -193,8 +206,8 @@ public class WebSocketClient {
             try {
                 // 尝试从json中解析frameId
                 org.json.JSONObject jsonObj = new org.json.JSONObject(json);
-                if (jsonObj.has("frameId")) {
-                    frameId = jsonObj.getLong("frameId");
+                if (jsonObj.has("data") && jsonObj.getJSONObject("data").has("frameId")) {
+                    frameId = jsonObj.getJSONObject("data").getLong("frameId");
                 }
             } catch (org.json.JSONException e) {
                 // 如果解析失败，继续使用时间戳

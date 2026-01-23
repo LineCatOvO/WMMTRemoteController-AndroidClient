@@ -14,6 +14,12 @@ import com.linecat.wmmtcontroller.model.RawInput;
  * 负责采集原始输入：触控、陀螺仪、按键、游戏手柄等
  */
 public class InputController implements SensorEventListener {
+    /**
+     * 输入事件监听器接口
+     */
+    public interface InputEventListener {
+        void onInputEvent();
+    }
     private static final String TAG = "InputController";
     private final Context context;
     private final SensorManager sensorManager;
@@ -22,6 +28,8 @@ public class InputController implements SensorEventListener {
     
     // 输入状态
     private RawInput currentRawInput;
+    // 输入事件监听器
+    private InputEventListener inputEventListener;
     
     public InputController(Context context) {
         this.context = context;
@@ -77,6 +85,22 @@ public class InputController implements SensorEventListener {
     }
 
     /**
+     * 设置输入事件监听器
+     */
+    public void setInputEventListener(InputEventListener listener) {
+        this.inputEventListener = listener;
+    }
+
+    /**
+     * 触发输入事件
+     */
+    private void triggerInputEvent() {
+        if (inputEventListener != null) {
+            inputEventListener.onInputEvent();
+        }
+    }
+
+    /**
      * 处理触控输入
      */
     public void processTouchInput(float x, float y, boolean isPressed) {
@@ -84,6 +108,8 @@ public class InputController implements SensorEventListener {
             currentRawInput.setTouchX(x);
             currentRawInput.setTouchY(y);
             currentRawInput.setTouchPressed(isPressed);
+            // 触发输入事件
+            triggerInputEvent();
         }
     }
 
@@ -93,6 +119,8 @@ public class InputController implements SensorEventListener {
     public void processKeyInput(int keyCode, boolean isPressed) {
         synchronized (this) {
             // 处理按键输入
+            // 触发输入事件
+            triggerInputEvent();
         }
     }
 
@@ -102,6 +130,8 @@ public class InputController implements SensorEventListener {
     public void processGamepadInput(int axis, float value, int button, boolean isPressed) {
         synchronized (this) {
             // 处理游戏手柄输入
+            // 触发输入事件
+            triggerInputEvent();
         }
     }
 
@@ -128,6 +158,8 @@ public class InputController implements SensorEventListener {
                 currentRawInput.setAccelY(event.values[1]);
                 currentRawInput.setAccelZ(event.values[2]);
             }
+            // 触发输入事件
+            triggerInputEvent();
         }
     }
 

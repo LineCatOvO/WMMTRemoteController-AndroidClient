@@ -48,29 +48,119 @@ public class LayoutLoader {
      */
     public LayoutSnapshot parseLayoutJson(String jsonString) throws JSONException {
         JSONObject root = new JSONObject(jsonString);
-
-        // 解析 meta 部分
-        JSONObject meta = root.optJSONObject("meta");
-        String layoutName = meta != null ? meta.optString("name", "Unknown Layout") : "Unknown Layout";
-        String layoutVersion = meta != null ? meta.optString("version", "1.0.0") : "1.0.0";
-
-        // 解析 ui 层
-        List<Region> uiRegions = parseUILayer(root.optJSONObject("ui"));
-
-        // 解析 operation 层
-        List<Region> operationRegions = parseOperationLayer(root.optJSONObject("operations"));
-
-        // 解析 mapping 层
-        List<Region> mappingRegions = parseMappingLayer(root.optJSONObject("mappings"));
-
-        // 合并所有区域
         List<Region> allRegions = new ArrayList<>();
-        allRegions.addAll(uiRegions);
-        allRegions.addAll(operationRegions);
-        allRegions.addAll(mappingRegions);
+
+        // 检查是否为用户提供的简化格式（elements数组）
+        JSONArray elementsArray = root.optJSONArray("elements");
+        if (elementsArray != null) {
+            // 解析简化格式
+            allRegions = parseElementsArray(elementsArray);
+        } else {
+            // 原格式（三层结构）
+            // 解析 meta 部分
+            JSONObject meta = root.optJSONObject("meta");
+            String layoutName = meta != null ? meta.optString("name", "Unknown Layout") : "Unknown Layout";
+            String layoutVersion = meta != null ? meta.optString("version", "1.0.0") : "1.0.0";
+
+            // 解析 ui 层
+            List<Region> uiRegions = parseUILayer(root.optJSONObject("ui"));
+
+            // 解析 operation 层
+            List<Region> operationRegions = parseOperationLayer(root.optJSONObject("operations"));
+
+            // 解析 mapping 层
+            List<Region> mappingRegions = parseMappingLayer(root.optJSONObject("mappings"));
+
+            // 合并所有区域
+            allRegions.addAll(uiRegions);
+            allRegions.addAll(operationRegions);
+            allRegions.addAll(mappingRegions);
+        }
 
         // 创建布局快照
         return new LayoutSnapshot(allRegions);
+    }
+    
+    /**
+     * 解析简化格式的elements数组
+     */
+    private List<Region> parseElementsArray(JSONArray elementsArray) throws JSONException {
+        List<Region> regions = new ArrayList<>();
+        
+        // 遍历elements数组
+        for (int i = 0; i < elementsArray.length(); i++) {
+            JSONObject elementObj = elementsArray.getJSONObject(i);
+            
+            // 解析元素属性
+            String id = elementObj.getString("id");
+            String typeStr = elementObj.getString("type");
+            
+            // 映射新类型到RegionType
+            Region.RegionType regionType = mapElementTypeToRegionType(typeStr);
+            if (regionType == null) {
+                Log.w(TAG, "Unknown element type: " + typeStr);
+                continue;
+            }
+            
+            // 解析位置和大小
+            JSONObject positionObj = elementObj.getJSONObject("position");
+            JSONObject sizeObj = elementObj.getJSONObject("size");
+            
+            float x = (float) positionObj.getDouble("x");
+            float y = (float) positionObj.getDouble("y");
+            float width = (float) sizeObj.getDouble("width");
+            float height = (float) sizeObj.getDouble("height");
+            
+            // 计算left, top, right, bottom（归一化坐标，0.0-1.0）
+            float left = x - width / 2;
+            float top = y - height / 2;
+            float right = x + width / 2;
+            float bottom = y + height / 2;
+            
+            // 解析优先级（默认0）
+            int zIndex = 0;
+            
+            // 解析映射信息
+            JSONObject mappingObj = elementObj.optJSONObject("mapping");
+            
+            // 解析customData
+            JSONObject customDataObj = mappingObj != null ? mappingObj : null;
+            
+            // 创建Region对象
+            Region region = new Region(
+                    id, regionType, left, top, right, bottom, zIndex,
+                    0.0f, // deadzone
+                    "linear", // curve
+                    new float[]{0.0f, 1.0f}, // range
+                    new float[]{0.0f, 1.0f}, // outputRange
+                    null, // operationType
+                    null, // mappingType
+                    null, // mappingKey
+                    mappingObj != null ? mappingObj.optString("axis", null) : null, // mappingAxis
+                    mappingObj != null ? mappingObj.optString("button", null) : null, // mappingButton
+                    null, // customMappingTarget
+                    customDataObj // customData
+            );
+            regions.add(region);
+        }
+        
+        return regions;
+    }
+    
+    /**
+     * 将元素类型映射到RegionType
+     */
+    private Region.RegionType mapElementTypeToRegionType(String elementType) {
+        switch (elementType.toLowerCase()) {
+            case "gyro":
+                return Region.RegionType.GYROSCOPE;
+            case "button":
+                return Region.RegionType.BUTTON;
+            case "analog":
+                return Region.RegionType.AXIS;
+            default:
+                return null;
+        }
     }
 
     /**

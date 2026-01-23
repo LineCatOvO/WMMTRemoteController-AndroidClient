@@ -22,13 +22,16 @@ public class LayoutEngine {
 
     // 当前布局快照
     private LayoutSnapshot currentLayout;
-
+    
     // 输出控制器
     private OutputController outputController;
-
+    
     // 布局加载器
     private LayoutLoader layoutLoader;
-
+    
+    // 默认布局JSON字符串
+    private static final String DEFAULT_LAYOUT_JSON = "{\"layoutId\": \"basic_racing_layout\", \"version\": 1, \"description\": \"Basic racing layout with throttle, brake, gear shift and gyro steering\", \"elements\": [{\"id\": \"steering_wheel\", \"type\": \"gyro\", \"displayOnly\": true, \"position\": {\"x\": 0.5, \"y\": 0.15}, \"size\": {\"width\": 0.4, \"height\": 0.25}, \"mapping\": {\"axis\": \"LX\", \"source\": \"gyroscope\", \"sensitivity\": 1.0}}, {\"id\": \"gear_up\", \"type\": \"button\", \"position\": {\"x\": 0.05, \"y\": 0.55}, \"size\": {\"width\": 0.12, \"height\": 0.15}, \"mapping\": {\"button\": \"RB\"}}, {\"id\": \"gear_down\", \"type\": \"button\", \"position\": {\"x\": 0.05, \"y\": 0.72}, \"size\": {\"width\": 0.12, \"height\": 0.15}, \"mapping\": {\"button\": \"LB\"}}, {\"id\": \"brake\", \"type\": \"analog\", \"position\": {\"x\": 0.20, \"y\": 0.60}, \"size\": {\"width\": 0.18, \"height\": 0.30}, \"mapping\": {\"trigger\": \"LT\"}}, {\"id\": \"throttle\", \"type\": \"analog\", \"position\": {\"x\": 0.75, \"y\": 0.60}, \"size\": {\"width\": 0.20, \"height\": 0.30}, \"mapping\": {\"trigger\": \"RT\"}}]} ";
+    
     public LayoutEngine(OutputController outputController) {
         this.outputController = outputController;
         this.uiLayerHandler = new UILayerHandler();
@@ -41,6 +44,18 @@ public class LayoutEngine {
      */
     public void setContext(Context context) {
         this.layoutLoader = new LayoutLoader(context);
+        // 上下文设置后，加载默认布局
+        try {
+            LayoutSnapshot defaultLayout = layoutLoader.parseLayoutJson(DEFAULT_LAYOUT_JSON);
+            if (defaultLayout != null) {
+                setLayout(defaultLayout);
+                Log.d(TAG, "Loaded default layout after setting context");
+            } else {
+                Log.w(TAG, "Failed to parse default layout after setting context");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error loading default layout after setting context", e);
+        }
     }
 
     /**
@@ -48,6 +63,22 @@ public class LayoutEngine {
      */
     public void init() {
         Log.d(TAG, "Layout engine initialized");
+        // 如果没有设置上下文，不加载默认布局，等待设置上下文后再加载
+        if (layoutLoader != null) {
+            try {
+                LayoutSnapshot defaultLayout = layoutLoader.parseLayoutJson(DEFAULT_LAYOUT_JSON);
+                if (defaultLayout != null) {
+                    setLayout(defaultLayout);
+                    Log.d(TAG, "Loaded default layout");
+                } else {
+                    Log.w(TAG, "Failed to parse default layout");
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error loading default layout", e);
+            }
+        } else {
+            Log.d(TAG, "LayoutLoader not initialized yet, will load default layout when context is set");
+        }
     }
 
     /**

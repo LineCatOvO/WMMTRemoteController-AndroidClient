@@ -20,6 +20,7 @@ import com.linecat.wmmtcontroller.input.EventNormalizer;
 import com.linecat.wmmtcontroller.input.InputInterpreter;
 import com.linecat.wmmtcontroller.input.InputScriptEngine;
 import com.linecat.wmmtcontroller.input.InputController;
+import com.linecat.wmmtcontroller.input.InputController.InputEventListener;
 import com.linecat.wmmtcontroller.input.JsInputScriptEngine;
 import com.linecat.wmmtcontroller.input.LayoutEngine;
 import com.linecat.wmmtcontroller.input.LayoutSnapshot;
@@ -40,7 +41,7 @@ import java.util.ArrayList;
  * 输入运行时服务
  * 负责采集RawInput、驱动frame tick、调用ScriptEngine、发送WebSocket
  */
-public class InputRuntimeService extends Service {
+public class InputRuntimeService extends Service implements InputEventListener {
     private static final String TAG = "InputRuntimeService";
     private static final String CHANNEL_ID = "InputRuntimeService";
     private static final int NOTIFICATION_ID = 1;
@@ -64,9 +65,14 @@ public class InputRuntimeService extends Service {
 
     // 运行状态
     private boolean isRunning = false;
-    private Thread mainLoopThread;
     // Frame ID 计数器，用于生成单调递增的帧ID
     private long frameIdCounter = 1;
+    // 输入处理标志，防止并发处理
+    private boolean isProcessingInput = false;
+    // 最后一次发送输入状态的时间戳，用于控制发送频率
+    private long lastSendTime = 0;
+    // 最小发送间隔（毫秒），控制最大发送频率
+    private static final long MIN_SEND_INTERVAL = 16; // 约60 FPS
 
     // 广播接收器，用于处理连接控制事件
     private android.content.BroadcastReceiver connectControlReceiver;
@@ -292,9 +298,17 @@ public class InputRuntimeService extends Service {
 
         // 创建输入控制器
         inputController = new InputController(this);
+        // 将当前服务注册为输入事件监听器
+        inputController.setInputEventListener(this);
 
         // 创建悬浮球控制器
         overlayController = new OverlayController(this);
+        
+        // 将布局引擎的当前布局传递给渲染器
+        LayoutSnapshot currentLayout = layoutEngine.getCurrentLayout();
+        if (currentLayout != null) {
+            overlayController.setCurrentLayout(currentLayout);
+        }
         
         // 创建安全控制器
         safetyController = new SafetyController(outputController);
@@ -395,52 +409,70 @@ public class InputRuntimeService extends Service {
     }
 
     /**
-     * 启动主循环
+     * 启动事件驱动机制
      */
     private void startMainLoop() {
-        mainLoopThread = new Thread(() -> {
-            Log.d(TAG, "Main loop started");
-
-            while (isRunning) {
-                try {
-                    // 1. 采集原始输入
-                    RawInput rawInput = inputController.collect();
-
-                    // 2. 执行布局处理
-                    InputState inputState = layoutEngine.executeLayout(rawInput, frameIdCounter);
-
-                    // 3. 递增 frameId
-                    frameIdCounter++;
-
-                    // 4. 发送输入状态
-                    transportController.sendInputState(inputState);
-
-                    // 5. 更新悬浮球状态
-                    updateFloatWindowStatus(frameIdCounter - 1, true);
-
-                    // 6. 等待下一帧
-                    Thread.sleep(16); // 约60 FPS
-
-                } catch (Exception e) {
-                    Log.e(TAG, "Error in main loop", e);
-                    
-                    // 处理异常，触发安全清零
-                    safetyController.handleException(e);
-                    
-                    // 尝试回滚配置文件
-                    profileManager.autoRollback();
-                    
-                    // 更新浮窗错误状态
-                    updateFloatWindowStatus(frameIdCounter - 1, false);
-                }
-            }
-
-            Log.d(TAG, "Main loop stopped");
-        });
-
-        // 设置运行标志为true，确保主循环持续运行
+        Log.d(TAG, "Event-driven input processing started");
+        // 设置运行标志为true
         isRunning = true;
-        mainLoopThread.start();
+    }
+
+    /**
+     * 处理输入事件
+     */
+    private void processInputEvent() {
+        // 防止并发处理
+        if (isProcessingInput || !isRunning) {
+            return;
+        }
+        
+        isProcessingInput = true;
+        
+        try {
+            // 1. 检查是否已连接
+            if (transportController.isConnected()) {
+                // 2. 检查是否达到最小发送间隔
+                long currentTime = System.currentTimeMillis();
+                if (currentTime - lastSendTime < MIN_SEND_INTERVAL) {
+                    isProcessingInput = false;
+                    return;
+                }
+                
+                // 3. 采集原始输入
+                RawInput rawInput = inputController.collect();
+
+                // 4. 执行布局处理
+                InputState inputState = layoutEngine.executeLayout(rawInput, frameIdCounter);
+
+                // 5. 递增 frameId
+                frameIdCounter++;
+
+                // 6. 发送输入状态
+                transportController.sendInputState(inputState);
+
+                // 7. 更新最后发送时间
+                lastSendTime = currentTime;
+
+                // 8. 更新悬浮球状态
+                updateFloatWindowStatus(frameIdCounter - 1, true);
+            } else {
+                // 未连接状态下，只更新悬浮球状态，跳过其他处理
+                updateFloatWindowStatus(frameIdCounter - 1, true);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error processing input event", e);
+            
+            // 处理异常，触发安全清零
+            safetyController.handleException(e);
+            
+            // 尝试回滚配置文件
+            profileManager.autoRollback();
+            
+            // 更新浮窗错误状态
+            updateFloatWindowStatus(frameIdCounter - 1, false);
+        } finally {
+            isProcessingInput = false;
+        }
     }
 
     /**
@@ -467,17 +499,11 @@ public class InputRuntimeService extends Service {
     }
 
     /**
-     * 停止主循环
+     * 停止事件驱动机制
      */
     private void stopMainLoop() {
         isRunning = false;
-        if (mainLoopThread != null) {
-            try {
-                mainLoopThread.join(1000);
-            } catch (InterruptedException e) {
-                Log.e(TAG, "Error stopping main loop", e);
-            }
-        }
+        Log.d(TAG, "Event-driven input processing stopped");
     }
 
     /**
@@ -523,5 +549,11 @@ public class InputRuntimeService extends Service {
         uiHandler.post(() -> {
             overlayController.showConnectionError();
         });
+    }
+
+    @Override
+    public void onInputEvent() {
+        // 输入事件发生时调用，处理输入并发送WebSocket数据
+        processInputEvent();
     }
 }

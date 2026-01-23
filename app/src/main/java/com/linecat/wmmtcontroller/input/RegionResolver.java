@@ -29,6 +29,9 @@ public class RegionResolver {
     // 布局管理器
     private LayoutManager layoutManager;
     
+    // 默认布局JSON字符串
+    private static final String DEFAULT_LAYOUT_JSON = "{\"layoutId\": \"basic_racing_layout\", \"version\": 1, \"description\": \"Basic racing layout with throttle, brake, gear shift and gyro steering\", \"elements\": [{\"id\": \"steering_wheel\", \"type\": \"gyro\", \"displayOnly\": true, \"position\": {\"x\": 0.5, \"y\": 0.15}, \"size\": {\"width\": 0.4, \"height\": 0.25}, \"mapping\": {\"axis\": \"LX\", \"source\": \"gyroscope\", \"sensitivity\": 1.0}}, {\"id\": \"gear_up\", \"type\": \"button\", \"position\": {\"x\": 0.05, \"y\": 0.55}, \"size\": {\"width\": 0.12, \"height\": 0.15}, \"mapping\": {\"button\": \"RB\"}}, {\"id\": \"gear_down\", \"type\": \"button\", \"position\": {\"x\": 0.05, \"y\": 0.72}, \"size\": {\"width\": 0.12, \"height\": 0.15}, \"mapping\": {\"button\": \"LB\"}}, {\"id\": \"brake\", \"type\": \"analog\", \"position\": {\"x\": 0.20, \"y\": 0.60}, \"size\": {\"width\": 0.18, \"height\": 0.30}, \"mapping\": {\"trigger\": \"LT\"}}, {\"id\": \"throttle\", \"type\": \"analog\", \"position\": {\"x\": 0.75, \"y\": 0.60}, \"size\": {\"width\": 0.20, \"height\": 0.30}, \"mapping\": {\"trigger\": \"RT\"}}]} ";
+    
     /**
      * 构造函数
      * @param context 上下文，用于初始化LayoutManager
@@ -37,8 +40,8 @@ public class RegionResolver {
         // 初始化布局管理器
         this.layoutManager = new LayoutManager(context);
         
-        // 初始化空布局快照
-        this.currentLayoutSnapshot = new LayoutSnapshot(new ArrayList<>());
+        // 加载默认布局
+        loadDefaultLayout();
     }
     
     /**
@@ -48,8 +51,29 @@ public class RegionResolver {
         // 初始化空布局管理器
         this.layoutManager = null;
         
-        // 初始化空布局快照
-        this.currentLayoutSnapshot = new LayoutSnapshot(new ArrayList<>());
+        // 加载默认布局
+        loadDefaultLayout();
+    }
+    
+    /**
+     * 加载默认布局
+     */
+    private void loadDefaultLayout() {
+        try {
+            List<Region> defaultRegions = parseRegionsFromJson(DEFAULT_LAYOUT_JSON);
+            if (defaultRegions != null && !defaultRegions.isEmpty()) {
+                updateRegions(defaultRegions);
+                Log.d(TAG, "Loaded default layout with " + defaultRegions.size() + " regions");
+            } else {
+                // 初始化空布局快照
+                this.currentLayoutSnapshot = new LayoutSnapshot(new ArrayList<>());
+                Log.w(TAG, "Default layout parsing returned no regions");
+            }
+        } catch (Exception e) {
+            // 初始化空布局快照
+            this.currentLayoutSnapshot = new LayoutSnapshot(new ArrayList<>());
+            Log.e(TAG, "Error loading default layout", e);
+        }
     }
     
     /**
@@ -157,53 +181,112 @@ public class RegionResolver {
         try {
             JSONObject jsonObj = new JSONObject(jsonStr);
             
-            // 获取regions数组
-            JSONArray regionsArray = jsonObj.optJSONArray("regions");
-            if (regionsArray == null) {
-                Log.e(TAG, "regions array not found in JSON");
-                return null;
-            }
-            
             List<Region> parsedRegions = new ArrayList<>();
             
-            // 遍历regions数组
-            for (int i = 0; i < regionsArray.length(); i++) {
-                JSONObject regionObj = regionsArray.getJSONObject(i);
+            // 检查是否为用户提供的新格式（elements数组）
+            JSONArray elementsArray = jsonObj.optJSONArray("elements");
+            if (elementsArray != null) {
+                // 遍历elements数组（新格式）
+                for (int i = 0; i < elementsArray.length(); i++) {
+                    JSONObject elementObj = elementsArray.getJSONObject(i);
+                    
+                    // 解析元素属性
+                    String id = elementObj.getString("id");
+                    String typeStr = elementObj.getString("type");
+                    
+                    // 映射新类型到RegionType
+                    Region.RegionType type = mapElementTypeToRegionType(typeStr);
+                    if (type == null) {
+                        Log.w(TAG, "Unknown element type: " + typeStr);
+                        continue;
+                    }
+                    
+                    // 解析位置和大小
+                    JSONObject positionObj = elementObj.getJSONObject("position");
+                    JSONObject sizeObj = elementObj.getJSONObject("size");
+                    
+                    float x = (float) positionObj.getDouble("x");
+                    float y = (float) positionObj.getDouble("y");
+                    float width = (float) sizeObj.getDouble("width");
+                    float height = (float) sizeObj.getDouble("height");
+                    
+                    // 计算left, top, right, bottom（归一化坐标，0.0-1.0）
+                    float left = x - width / 2;
+                    float top = y - height / 2;
+                    float right = x + width / 2;
+                    float bottom = y + height / 2;
+                    
+                    // 解析优先级（默认0）
+                    int priority = 0;
+                    
+                    // 解析自定义数据
+                    JSONObject mappingObj = elementObj.optJSONObject("mapping");
+                    Object customData = mappingObj != null ? mappingObj : null;
+                    
+                    // 创建Region对象，为缺少的参数提供默认值
+                    Region region = new Region(
+                            id, type, left, top, right, bottom, priority, 
+                            0.0f, // deadzone
+                            "linear", // curve
+                            new float[]{0.0f, 1.0f}, // range
+                            new float[]{0.0f, 1.0f}, // outputRange
+                            null, // operationType
+                            null, // mappingType
+                            null, // mappingKey
+                            mappingObj != null ? mappingObj.optString("axis", null) : null, // mappingAxis
+                            mappingObj != null ? mappingObj.optString("button", null) : null, // mappingButton
+                            null, // customMappingTarget
+                            customData // customData
+                    );
+                    parsedRegions.add(region);
+                }
+            } else {
+                // 原格式（regions数组）
+                JSONArray regionsArray = jsonObj.optJSONArray("regions");
+                if (regionsArray == null) {
+                    Log.e(TAG, "No regions or elements array found in JSON");
+                    return null;
+                }
                 
-                // 解析区域属性
-                String id = regionObj.getString("id");
-                String typeStr = regionObj.getString("type");
-                Region.RegionType type = Region.RegionType.valueOf(typeStr.toUpperCase());
-                
-                // 解析区域坐标（归一化坐标，0.0-1.0）
-                float left = (float) regionObj.optDouble("left", 0.0);
-                float top = (float) regionObj.optDouble("top", 0.0);
-                float right = (float) regionObj.optDouble("right", 1.0);
-                float bottom = (float) regionObj.optDouble("bottom", 1.0);
-                
-                // 解析优先级
-                int priority = regionObj.optInt("priority", 0);
-                
-                // 解析自定义数据
-                JSONObject customDataObj = regionObj.optJSONObject("customData");
-                Object customData = customDataObj != null ? customDataObj : null;
-                
-                // 创建Region对象，为缺少的参数提供默认值
-                Region region = new Region(
-                        id, type, left, top, right, bottom, priority, 
-                        0.0f, // deadzone
-                        "linear", // curve
-                        new float[]{0.0f, 1.0f}, // range
-                        new float[]{0.0f, 1.0f}, // outputRange
-                        null, // operationType
-                        null, // mappingType
-                        null, // mappingKey
-                        null, // mappingAxis
-                        null, // mappingButton
-                        null, // customMappingTarget
-                        customData // customData
-                );
-                parsedRegions.add(region);
+                // 遍历regions数组
+                for (int i = 0; i < regionsArray.length(); i++) {
+                    JSONObject regionObj = regionsArray.getJSONObject(i);
+                    
+                    // 解析区域属性
+                    String id = regionObj.getString("id");
+                    String typeStr = regionObj.getString("type");
+                    Region.RegionType type = Region.RegionType.valueOf(typeStr.toUpperCase());
+                    
+                    // 解析区域坐标（归一化坐标，0.0-1.0）
+                    float left = (float) regionObj.optDouble("left", 0.0);
+                    float top = (float) regionObj.optDouble("top", 0.0);
+                    float right = (float) regionObj.optDouble("right", 1.0);
+                    float bottom = (float) regionObj.optDouble("bottom", 1.0);
+                    
+                    // 解析优先级
+                    int priority = regionObj.optInt("priority", 0);
+                    
+                    // 解析自定义数据
+                    JSONObject customDataObj = regionObj.optJSONObject("customData");
+                    Object customData = customDataObj != null ? customDataObj : null;
+                    
+                    // 创建Region对象，为缺少的参数提供默认值
+                    Region region = new Region(
+                            id, type, left, top, right, bottom, priority, 
+                            0.0f, // deadzone
+                            "linear", // curve
+                            new float[]{0.0f, 1.0f}, // range
+                            new float[]{0.0f, 1.0f}, // outputRange
+                            null, // operationType
+                            null, // mappingType
+                            null, // mappingKey
+                            null, // mappingAxis
+                            null, // mappingButton
+                            null, // customMappingTarget
+                            customData // customData
+                    );
+                    parsedRegions.add(region);
+                }
             }
             
             return parsedRegions;
@@ -213,6 +296,24 @@ public class RegionResolver {
         } catch (IllegalArgumentException e) {
             Log.e(TAG, "Invalid region type: " + e.getMessage(), e);
             return null;
+        }
+    }
+    
+    /**
+     * 将新格式的元素类型映射到RegionType
+     * @param elementType 元素类型字符串
+     * @return 对应的RegionType，未知类型返回null
+     */
+    private Region.RegionType mapElementTypeToRegionType(String elementType) {
+        switch (elementType.toLowerCase()) {
+            case "gyro":
+                return Region.RegionType.GYROSCOPE;
+            case "button":
+                return Region.RegionType.BUTTON;
+            case "analog":
+                return Region.RegionType.AXIS;
+            default:
+                return null;
         }
     }
     

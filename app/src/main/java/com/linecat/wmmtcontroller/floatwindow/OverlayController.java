@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.util.Log;
 
 import com.linecat.wmmtcontroller.MainActivity;
+import com.linecat.wmmtcontroller.input.LayoutSnapshot;
 
 /**
  * 悬浮球控制器
@@ -71,6 +72,13 @@ public class OverlayController {
      */
     public boolean isOverlayVisible() {
         return isOverlayVisible;
+    }
+
+    /**
+     * 设置当前布局
+     */
+    public void setCurrentLayout(LayoutSnapshot layout) {
+        floatWindowManager.setCurrentLayout(layout);
     }
 
     /**

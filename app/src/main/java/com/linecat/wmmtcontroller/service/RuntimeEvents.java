@@ -15,6 +15,7 @@ public class RuntimeEvents {
     public static final String ACTION_WS_SENT_FRAME = "com.linecat.wmmtcontroller.WS_SENT_FRAME";
     public static final String ACTION_RUNTIME_ERROR = "com.linecat.wmmtcontroller.RUNTIME_ERROR";
     public static final String ACTION_PROFILE_ROLLBACK = "com.linecat.wmmtcontroller.PROFILE_ROLLBACK";
+    public static final String ACTION_CONNECTION_INFO_UPDATED = "com.linecat.wmmtcontroller.CONNECTION_INFO_UPDATED";
     
     // 广播额外数据键
     public static final String EXTRA_FRAME_ID = "frameId";

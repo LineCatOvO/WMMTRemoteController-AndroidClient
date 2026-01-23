@@ -287,6 +287,8 @@ public class InputRuntimeService extends Service {
 
         // 创建配置文件管理器
         profileManager = new ProfileManager(this, scriptEngine);
+        // 设置布局引擎
+        profileManager.setLayoutEngine(layoutEngine);
 
         // 创建输入控制器
         inputController = new InputController(this);

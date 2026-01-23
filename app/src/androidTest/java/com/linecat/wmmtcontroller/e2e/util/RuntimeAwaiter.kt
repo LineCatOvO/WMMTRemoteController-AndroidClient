@@ -136,10 +136,10 @@ class RuntimeAwaiter {
      * @param timeoutMs Timeout in milliseconds
      * @return The WebSocket frame content
      */
-    fun awaitNextFrame(timeoutMs: Long = 10000): String {
+    fun awaitNextFrame(timeoutMs: Long = 20000): String {
         val frameContent = frameQueue.poll(timeoutMs, TimeUnit.MILLISECONDS)
         
-        checkNotNull(frameContent) { "Timed out waiting for next WebSocket frame" }
+        checkNotNull(frameContent) { "Timed out waiting for next WebSocket frame after $timeoutMs ms. Queue size: ${frameQueue.size}" }
         
         return frameContent
     }

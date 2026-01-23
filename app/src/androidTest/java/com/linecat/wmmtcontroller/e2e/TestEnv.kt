@@ -34,6 +34,7 @@ open class TestEnv {
     fun setup() {
         // Start the mock WebSocket server
         mockWsServer.start()
+        println("Mock WebSocket server started at ${mockWsServer.getWsUrl()}")
 
         // Initialize RuntimeConfig
         runtimeConfig = RuntimeConfig(context)
@@ -45,13 +46,16 @@ open class TestEnv {
         runtimeConfig.setWebSocketUrl(mockWsServer.getWsUrl())
         runtimeConfig.setProfileId("official-profiles/wmmt_keyboard_basic")
         runtimeConfig.setUseScriptRuntime(true)
+        println("Test configuration set")
 
         // Explicitly start InputRuntimeService
         val serviceIntent = Intent(context, InputRuntimeService::class.java)
         context.startService(serviceIntent)
+        println("InputRuntimeService started")
 
         // Wait for Runtime to start completely
-        runtimeAwaiter.awaitRuntimeStarted()
+        val started = runtimeAwaiter.awaitRuntimeStarted(10000)
+        println("Runtime started: $started")
     }
 
     @After

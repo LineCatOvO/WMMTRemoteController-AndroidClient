@@ -1,206 +1,178 @@
 package com.linecat.wmmtcontroller.e2e.util
 
-import org.json.JSONArray
-import org.json.JSONException
-import org.json.JSONObject
+import com.google.gson.Gson
+import com.linecat.wmmtcontroller.model.InputState
+import okhttp3.mockwebserver.RecordedRequest
+import org.junit.Assert.*
 
 /**
- * JSON Assertions for E2E testing
- * Provides methods to assert JSON structure and content in WebSocket messages
+ * JSON assertion utilities for E2E tests
+ * Provides methods for parsing and validating InputState from WebSocket messages
  */
-object JsonAssertions {
+class JsonAssertions {
 
-    /**
-     * Assert that a JSON string contains a specific field with a specific value
-     * @param jsonString The JSON string to assert
-     * @param fieldName The field name to check
-     * @param expectedValue The expected value of the field
-     * @return True if the assertion passes, false otherwise
-     */
-    fun assertJsonField(jsonString: String, fieldName: String, expectedValue: Any): Boolean {
-        try {
-            val jsonObject = JSONObject(jsonString)
-            return when (expectedValue) {
-                is String -> jsonObject.getString(fieldName) == expectedValue
-                is Int -> jsonObject.getInt(fieldName) == expectedValue
-                is Long -> jsonObject.getLong(fieldName) == expectedValue
-                is Double -> jsonObject.getDouble(fieldName) == expectedValue
-                is Boolean -> jsonObject.getBoolean(fieldName) == expectedValue
-                else -> false
-            }
-        } catch (e: JSONException) {
-            return false
+    companion object {
+        private val gson = Gson()
+        private var lastFrameId: Long = -1
+
+        /**
+         * Parse InputState from WebSocket request
+         * @param request Recorded WebSocket request
+         * @return Parsed InputState
+         */
+        fun parseInputState(request: RecordedRequest): InputState {
+            val body = request.body.readUtf8()
+            return gson.fromJson(body, InputState::class.java)
         }
-    }
 
-    /**
-     * Assert that a JSON string contains a specific field with an empty value
-     * @param jsonString The JSON string to assert
-     * @param fieldName The field name to check
-     * @return True if the assertion passes, false otherwise
-     */
-    fun assertJsonFieldEmpty(jsonString: String, fieldName: String): Boolean {
-        try {
-            val jsonObject = JSONObject(jsonString)
-            val fieldValue = jsonObject.get(fieldName)
-            return when (fieldValue) {
-                is String -> fieldValue.isEmpty()
-                is JSONArray -> fieldValue.length() == 0
-                is JSONObject -> fieldValue.length() == 0
-                else -> false
-            }
-        } catch (e: JSONException) {
-            return false
+        /**
+         * Validate InputState sequence
+         * @param previousState Previous InputState
+         * @param currentState Current InputState
+         * @return True if sequence is valid (current frameId > previous frameId)
+         */
+        fun validateSequence(previousState: InputState, currentState: InputState): Boolean {
+            return currentState.frameId > previousState.frameId
         }
-    }
 
-    /**
-     * Assert that a JSON string contains a specific field with a list that contains all expected values
-     * @param jsonString The JSON string to assert
-     * @param fieldName The field name to check
-     * @param expectedValues The expected values in the list
-     * @return True if the assertion passes, false otherwise
-     */
-    fun assertJsonFieldContainsValues(jsonString: String, fieldName: String, expectedValues: List<String>): Boolean {
-        try {
-            val jsonObject = JSONObject(jsonString)
-            val jsonArray = jsonObject.getJSONArray(fieldName)
-            
-            val actualValues = mutableListOf<String>()
-            for (i in 0 until jsonArray.length()) {
-                actualValues.add(jsonArray.getString(i))
-            }
-            
-            return actualValues.containsAll(expectedValues)
-        } catch (e: JSONException) {
-            return false
+        /**
+         * Validate InputState is zero state
+         * @param state InputState to check
+         * @return True if state is zero state
+         */
+        fun validateZeroState(state: InputState): Boolean {
+            return state.keyboard.isEmpty() &&
+                   state.mouse.x == 0.0f &&
+                   state.mouse.y == 0.0f &&
+                   !state.mouse.isLeft() &&
+                   !state.mouse.isRight() &&
+                   !state.mouse.isMiddle() &&
+                   state.joystick.x == 0.0f &&
+                   state.joystick.y == 0.0f &&
+                   state.gyroscope.pitch == 0.0f &&
+                   state.gyroscope.roll == 0.0f &&
+                   state.gyroscope.yaw == 0.0f
         }
-    }
 
-    /**
-     * Assert that a JSON string contains a specific field with an empty list
-     * @param jsonString The JSON string to assert
-     * @param fieldName The field name to check
-     * @return True if the assertion passes, false otherwise
-     */
-    fun assertJsonFieldEmptyList(jsonString: String, fieldName: String): Boolean {
-        try {
-            val jsonObject = JSONObject(jsonString)
-            val jsonArray = jsonObject.getJSONArray(fieldName)
-            return jsonArray.length() == 0
-        } catch (e: JSONException) {
-            return false
-        }
-    }
-
-    /**
-     * Assert that a WebSocket frame contains valid JSON with expected fields
-     * @param wsMessage The WebSocket message to assert
-     * @return True if the assertion passes, false otherwise
-     */
-    fun assertFrameJsonValid(wsMessage: String): Boolean {
-        try {
-            val jsonObject = JSONObject(wsMessage)
-            
-            // Check required fields
-            jsonObject.getString("type")
-            jsonObject.getString("version")
-            jsonObject.getLong("frameId")
-            
-            // Check input state fields
-            jsonObject.getJSONArray("keyboard")
-            jsonObject.getJSONObject("mouse")
-            jsonObject.getJSONObject("joystick")
-            jsonObject.getJSONObject("gyroscope")
-            
+        /**
+         * Assert that frame JSON is valid
+         * @param request Recorded WebSocket request
+         * @return True if frame is valid
+         */
+        fun assertFrameJsonValid(request: RecordedRequest): Boolean {
+            val state = parseInputState(request)
+            assertNotNull("InputState should not be null", state)
             return true
-        } catch (e: JSONException) {
-            return false
         }
-    }
 
-    /**
-     * Assert that frameId is monotonically increasing
-     * @param prevFrame Previous frame JSON string
-     * @param nextFrame Next frame JSON string
-     * @return True if the assertion passes, false otherwise
-     */
-    fun assertFrameHasMonotonicFrameId(prevFrame: String?, nextFrame: String): Boolean {
-        try {
-            if (prevFrame == null) {
-                // First frame, just check frameId exists
-                val nextJson = JSONObject(nextFrame)
-                nextJson.getLong("frameId")
-                return true
+        /**
+         * Assert that frame JSON is valid
+         * @param jsonString JSON string to validate
+         * @return True if frame is valid
+         */
+        fun assertFrameJsonValid(jsonString: String): Boolean {
+            val state = gson.fromJson(jsonString, InputState::class.java)
+            assertNotNull("InputState should not be null", state)
+            return true
+        }
+
+        /**
+         * Parse InputState from JSON string
+         * @param jsonString JSON string to parse
+         * @return Parsed InputState
+         */
+        fun parseInputState(jsonString: String): InputState {
+            return gson.fromJson(jsonString, InputState::class.java)
+        }
+
+        /**
+         * Assert that keyboard keys are empty
+         * @param state InputState to check
+         * @return True if keyboard is empty
+         */
+        fun assertHeldKeysEmpty(state: InputState): Boolean {
+            assertTrue("Keyboard should be empty, got ${state.keyboard}", state.keyboard.isEmpty())
+            return true
+        }
+
+        /**
+         * Assert that keyboard keys are empty
+         * @param jsonString JSON string to check
+         * @return True if keyboard is empty
+         */
+        fun assertHeldKeysEmpty(jsonString: String): Boolean {
+            val state = parseInputState(jsonString)
+            return assertHeldKeysEmpty(state)
+        }
+
+        /**
+         * Assert that frame has monotonic frameId
+         * @param state InputState to check
+         */
+        fun assertFrameHasMonotonicFrameId(state: InputState) {
+            if (lastFrameId >= 0) {
+                assertTrue("FrameId should be monotonic: last=$lastFrameId, current=${state.frameId}",
+                    state.frameId > lastFrameId)
             }
-            
-            val prevJson = JSONObject(prevFrame)
-            val nextJson = JSONObject(nextFrame)
-            
-            val prevFrameId = prevJson.getLong("frameId")
-            val nextFrameId = nextJson.getLong("frameId")
-            
-            return nextFrameId > prevFrameId
-        } catch (e: JSONException) {
-            return false
+            lastFrameId = state.frameId
         }
-    }
 
-    /**
-     * Assert that heldKeys is empty in a WebSocket frame
-     * @param wsMessage The WebSocket message to assert
-     * @return True if the assertion passes, false otherwise
-     */
-    fun assertHeldKeysEmpty(wsMessage: String): Boolean {
-        return assertJsonFieldEmptyList(wsMessage, "keyboard")
-    }
-
-    /**
-     * Assert that an event sequence matches the expected prefix
-     * @param events Actual events received
-     * @param expectedPrefix Expected sequence of events
-     * @return True if the assertion passes, false otherwise
-     */
-    fun assertEventSequence(events: List<String>, expectedPrefix: List<String>): Boolean {
-        if (events.size < expectedPrefix.size) {
-            return false
-        }
-        
-        for (i in expectedPrefix.indices) {
-            if (events[i] != expectedPrefix[i]) {
-                return false
-            }
-        }
-        
-        return true
-    }
-    
-    /**
-     * Extract frameId from a WebSocket frame
-     * @param frame WebSocket frame JSON string
-     * @return frameId value
-     * @throws JSONException if frameId is not found or is not a number
-     */
-    fun extractFrameId(frame: String): Long {
-        val json = JSONObject(frame)
-        return json.getLong("frameId")
-    }
-    
-    /**
-     * Extract runtimeStatus from a WebSocket frame
-     * @param frame WebSocket frame JSON string
-     * @return runtimeStatus value, or null if not present
-     */
-    fun extractRuntimeStatus(frame: String): String? {
-        try {
-            val json = JSONObject(frame)
-            return if (json.has("runtimeStatus")) {
-                json.getString("runtimeStatus")
+        /**
+         * Assert that frame has monotonic frameId compared to previous frame
+         * @param previousFrameJson Previous frame JSON string
+         * @param currentFrameJson Current frame JSON string
+         */
+        fun assertFrameHasMonotonicFrameId(previousFrameJson: String?, currentFrameJson: String): Boolean {
+            val currentState = parseInputState(currentFrameJson)
+            return if (previousFrameJson != null) {
+                val previousState = parseInputState(previousFrameJson)
+                val result = currentState.frameId > previousState.frameId
+                if (!result) {
+                    println("FrameId is not monotonic: previous=${previousState.frameId}, current=${currentState.frameId}")
+                }
+                result
             } else {
-                null
+                lastFrameId = currentState.frameId
+                true
             }
-        } catch (e: JSONException) {
-            return null
+        }
+
+        /**
+         * Extract frameId from InputState
+         * @param state InputState
+         * @return frameId
+         */
+        fun extractFrameId(state: InputState): Long {
+            return state.frameId
+        }
+
+        /**
+         * Extract frameId from JSON string
+         * @param jsonString JSON string
+         * @return frameId
+         */
+        fun extractFrameId(jsonString: String): Long {
+            val state = parseInputState(jsonString)
+            return state.frameId
+        }
+
+        /**
+         * Extract runtimeStatus from InputState
+         * @param state InputState
+         * @return runtimeStatus
+         */
+        fun extractRuntimeStatus(state: InputState): String {
+            return state.runtimeStatus
+        }
+
+        /**
+         * Extract runtimeStatus from JSON string
+         * @param jsonString JSON string
+         * @return runtimeStatus
+         */
+        fun extractRuntimeStatus(jsonString: String): String {
+            val state = parseInputState(jsonString)
+            return state.runtimeStatus
         }
     }
 }

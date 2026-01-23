@@ -40,7 +40,8 @@ class MockWsServer {
      * @return WebSocket URL
      */
     fun getWsUrl(): String {
-        return "ws://127.0.0.1:${mockServer.port}/ws/input"
+        // Use 10.0.2.2 instead of 127.0.0.1 for emulator to access host machine
+        return "ws://10.0.2.2:${mockServer.port}/ws/input"
     }
 
     /**

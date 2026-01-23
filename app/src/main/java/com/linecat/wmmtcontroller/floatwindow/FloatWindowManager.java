@@ -491,11 +491,8 @@ public class FloatWindowManager {
      * 初始化布局列表
      */
     private void initLayoutsList() {
-        // 添加示例布局
+        // 添加默认布局
         layoutsList.add("默认键盘布局");
-        layoutsList.add("游戏手柄布局");
-        layoutsList.add("陀螺仪触控组合");
-        layoutsList.add("故障脚本测试");
 
         // 创建布局适配器
         layoutsAdapter = new ArrayAdapter<>(context,
@@ -648,6 +645,15 @@ public class FloatWindowManager {
     public void setCurrentLayout(LayoutSnapshot layout) {
         if (layoutRenderer != null) {
             layoutRenderer.setLayout(layout);
+        }
+    }
+    
+    /**
+     * 设置输入控制器到布局渲染器
+     */
+    public void setInputController(com.linecat.wmmtcontroller.input.InteractionCapture inputController) {
+        if (layoutRenderer != null) {
+            layoutRenderer.setInputController(inputController);
         }
     }
 

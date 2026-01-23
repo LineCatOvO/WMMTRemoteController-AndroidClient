@@ -46,7 +46,6 @@ public class FormattedInputMessage {
         public String[] keyboard;
         public Mouse mouse;
         public Joystick joystick;
-        public Gyroscope gyroscope;
 
         public Data(InputState inputState) {
             this.frameId = inputState.getFrameId();
@@ -54,7 +53,6 @@ public class FormattedInputMessage {
             this.keyboard = inputState.getKeyboard().toArray(new String[inputState.getKeyboard().size()]);
             this.mouse = new Mouse(inputState.getMouse());
             this.joystick = new Joystick(inputState.getJoystick());
-            this.gyroscope = new Gyroscope(inputState.getGyroscope());
         }
     }
 
@@ -88,19 +86,5 @@ public class FormattedInputMessage {
         }
     }
 
-    public static class Gyroscope {
-        public float pitch;
-        public float roll;
-        public float yaw;
-        public float deadzone;
-        public float smoothing;
 
-        public Gyroscope(InputState.GyroscopeState gyroscopeState) {
-            this.pitch = gyroscopeState.getPitch();
-            this.roll = gyroscopeState.getRoll();
-            this.yaw = gyroscopeState.getYaw();
-            this.deadzone = gyroscopeState.getDeadzone();
-            this.smoothing = gyroscopeState.getSmoothing();
-        }
-    }
 }

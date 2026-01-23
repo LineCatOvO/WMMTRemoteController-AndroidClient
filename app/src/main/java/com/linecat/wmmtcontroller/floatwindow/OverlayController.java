@@ -80,6 +80,13 @@ public class OverlayController {
     public void setCurrentLayout(LayoutSnapshot layout) {
         floatWindowManager.setCurrentLayout(layout);
     }
+    
+    /**
+     * 设置输入控制器到布局渲染器
+     */
+    public void setInputController(com.linecat.wmmtcontroller.input.InteractionCapture inputController) {
+        floatWindowManager.setInputController(inputController);
+    }
 
     /**
      * 销毁悬浮球控制器

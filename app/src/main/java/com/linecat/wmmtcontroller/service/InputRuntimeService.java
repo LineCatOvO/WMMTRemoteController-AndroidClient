@@ -19,8 +19,10 @@ import com.linecat.wmmtcontroller.floatwindow.OverlayController;
 import com.linecat.wmmtcontroller.input.EventNormalizer;
 import com.linecat.wmmtcontroller.input.InputInterpreter;
 import com.linecat.wmmtcontroller.input.InputScriptEngine;
-import com.linecat.wmmtcontroller.input.InputController;
-import com.linecat.wmmtcontroller.input.InputController.InputEventListener;
+import com.linecat.wmmtcontroller.input.InteractionCapture;
+import com.linecat.wmmtcontroller.input.IntentComposer;
+import com.linecat.wmmtcontroller.input.DeviceProjector;
+
 import com.linecat.wmmtcontroller.input.JsInputScriptEngine;
 import com.linecat.wmmtcontroller.input.LayoutEngine;
 import com.linecat.wmmtcontroller.input.LayoutSnapshot;
@@ -41,7 +43,7 @@ import java.util.ArrayList;
  * 输入运行时服务
  * 负责采集RawInput、驱动frame tick、调用ScriptEngine、发送WebSocket
  */
-public class InputRuntimeService extends Service implements InputEventListener {
+public class InputRuntimeService extends Service {
     private static final String TAG = "InputRuntimeService";
     private static final String CHANNEL_ID = "InputRuntimeService";
     private static final int NOTIFICATION_ID = 1;
@@ -50,7 +52,7 @@ public class InputRuntimeService extends Service implements InputEventListener {
     private RuntimeConfig runtimeConfig;
     private ProfileManager profileManager;
     private InputScriptEngine scriptEngine;
-    private InputController inputController;
+    private InteractionCapture inputController;
     private LayoutEngine layoutEngine;
     private OutputController outputController;
     private SafetyController safetyController;
@@ -69,10 +71,7 @@ public class InputRuntimeService extends Service implements InputEventListener {
     private long frameIdCounter = 1;
     // 输入处理标志，防止并发处理
     private boolean isProcessingInput = false;
-    // 最后一次发送输入状态的时间戳，用于控制发送频率
-    private long lastSendTime = 0;
-    // 最小发送间隔（毫秒），控制最大发送频率
-    private static final long MIN_SEND_INTERVAL = 16; // 约60 FPS
+
 
     // 广播接收器，用于处理连接控制事件
     private android.content.BroadcastReceiver connectControlReceiver;
@@ -296,10 +295,16 @@ public class InputRuntimeService extends Service implements InputEventListener {
         // 设置布局引擎
         profileManager.setLayoutEngine(layoutEngine);
 
-        // 创建输入控制器
-        inputController = new InputController(this);
+        // 创建意图合成器
+        IntentComposer intentComposer = new IntentComposer();
+        
+        // 创建设备投影器
+        DeviceProjector deviceProjector = new DeviceProjector(transportController, layoutEngine);
+        
+        // 创建交互捕获器
+        inputController = new InteractionCapture(this, intentComposer, deviceProjector);
         // 将当前服务注册为输入事件监听器
-        inputController.setInputEventListener(this);
+        // 注意：现在InteractionCapture不再实现InputEventListener接口，所以我们不再需要设置监听器
 
         // 创建悬浮球控制器
         overlayController = new OverlayController(this);
@@ -309,6 +314,9 @@ public class InputRuntimeService extends Service implements InputEventListener {
         if (currentLayout != null) {
             overlayController.setCurrentLayout(currentLayout);
         }
+        
+        // 将输入控制器设置到布局渲染器
+        overlayController.setInputController(inputController);
         
         // 创建安全控制器
         safetyController = new SafetyController(outputController);
@@ -417,63 +425,7 @@ public class InputRuntimeService extends Service implements InputEventListener {
         isRunning = true;
     }
 
-    /**
-     * 处理输入事件
-     */
-    private void processInputEvent() {
-        // 防止并发处理
-        if (isProcessingInput || !isRunning) {
-            return;
-        }
-        
-        isProcessingInput = true;
-        
-        try {
-            // 1. 检查是否已连接
-            if (transportController.isConnected()) {
-                // 2. 检查是否达到最小发送间隔
-                long currentTime = System.currentTimeMillis();
-                if (currentTime - lastSendTime < MIN_SEND_INTERVAL) {
-                    isProcessingInput = false;
-                    return;
-                }
-                
-                // 3. 采集原始输入
-                RawInput rawInput = inputController.collect();
 
-                // 4. 执行布局处理
-                InputState inputState = layoutEngine.executeLayout(rawInput, frameIdCounter);
-
-                // 5. 递增 frameId
-                frameIdCounter++;
-
-                // 6. 发送输入状态
-                transportController.sendInputState(inputState);
-
-                // 7. 更新最后发送时间
-                lastSendTime = currentTime;
-
-                // 8. 更新悬浮球状态
-                updateFloatWindowStatus(frameIdCounter - 1, true);
-            } else {
-                // 未连接状态下，只更新悬浮球状态，跳过其他处理
-                updateFloatWindowStatus(frameIdCounter - 1, true);
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Error processing input event", e);
-            
-            // 处理异常，触发安全清零
-            safetyController.handleException(e);
-            
-            // 尝试回滚配置文件
-            profileManager.autoRollback();
-            
-            // 更新浮窗错误状态
-            updateFloatWindowStatus(frameIdCounter - 1, false);
-        } finally {
-            isProcessingInput = false;
-        }
-    }
 
     /**
      * 更新浮窗状态
@@ -551,9 +503,5 @@ public class InputRuntimeService extends Service implements InputEventListener {
         });
     }
 
-    @Override
-    public void onInputEvent() {
-        // 输入事件发生时调用，处理输入并发送WebSocket数据
-        processInputEvent();
-    }
+
 }

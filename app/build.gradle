@@ -53,38 +53,38 @@ dependencies {
     androidTestImplementation libs.test.runner
 }
 
-// 构建期检查任务：确保官方Profile不使用Experimental API或host.访问
-task checkOfficialProfiles {
-    group 'Verification'
-    description 'Checks that official profiles do not use Experimental API or host. access'
-    
-    doLast {
-        def profilesDir = file('src/main/assets/official-profiles')
-        def experimentalAPIs = ['setMousePosition', 'setMouseButton', 'getGyro', 'getTouch']
-        
-        profilesDir.eachDirRecurse {
-            def mainJs = new File(it, 'main.js')
-            if (mainJs.exists()) {
-                def content = mainJs.text
-                
-                // 检查是否使用了host.
-                if (content.contains('host.')) {
-                    throw new GradleException("Official profile $it.name uses forbidden host. access in main.js")
-                }
-                
-                // 检查是否使用了Experimental API（匹配方法调用模式）
-                experimentalAPIs.each { api ->
-                    def pattern = "${api}(" // 匹配方法调用，如setMousePosition(
-                    if (content.contains(pattern)) {
-                        throw new GradleException("Official profile $it.name uses forbidden Experimental API '$api' in main.js")
-                    }
-                }
-                
-                println "✓ Official profile $it.name passed API checks"
-            }
-        }
-    }
-}
-
-// 将检查任务添加到预构建阶段
-preBuild.dependsOn checkOfficialProfiles
+// 注释掉废弃的官方Profile检查任务
+// task checkOfficialProfiles {
+//     group 'Verification'
+//     description 'Checks that official profiles do not use Experimental API or host. access'
+//     
+//     doLast {
+//         def profilesDir = file('src/main/assets/official-profiles')
+//         def experimentalAPIs = ['setMousePosition', 'setMouseButton', 'getGyro', 'getTouch']
+//         
+//         profilesDir.eachDirRecurse {
+//             def mainJs = new File(it, 'main.js')
+//             if (mainJs.exists()) {
+//                 def content = mainJs.text
+//                 
+//                 // 检查是否使用了host.
+//                 if (content.contains('host.')) {
+//                     throw new GradleException("Official profile $it.name uses forbidden host. access in main.js")
+//                 }
+//                 
+//                 // 检查是否使用了Experimental API（匹配方法调用模式）
+//                 experimentalAPIs.each { api ->
+//                     def pattern = "${api}(" // 匹配方法调用，如setMousePosition(
+//                     if (content.contains(pattern)) {
+//                         throw new GradleException("Official profile $it.name uses forbidden Experimental API '$api' in main.js")
+//                     }
+//                 }
+//                 
+//                 println "✓ Official profile $it.name passed API checks"
+//             }
+//         }
+//     }
+// }
+// 
+// // 将检查任务添加到预构建阶段
+// preBuild.dependsOn checkOfficialProfiles

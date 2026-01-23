@@ -135,10 +135,8 @@ public class OperationLayerHandler {
      */
     private void processButtonOperation(Region region, RawInput rawInput, InputState inputState) {
         // 处理按钮操作
-        boolean isPressed = false; // 实际应从 UI 层结果获取
-        
-        // 更新输入状态
-        // inputState.setButton(region.getId(), isPressed);
+        // 从 RawInput 中获取按钮状态，按钮ID应该是区域ID
+        boolean isPressed = rawInput.getGamepad().getButtons().getOrDefault(region.getId(), false);
         
         Log.d(TAG, "Button operation processed: " + region.getId() + ", pressed: " + isPressed);
     }

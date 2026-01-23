@@ -1,0 +1,85 @@
+{
+    "layoutId": "basic_racing_layout",
+    "version": 1,
+    "description": "Basic racing layout with throttle, brake, gear shift and gyro steering",
+    "elements": [
+        {
+            "id": "steering_wheel",
+            "type": "gyro",
+            "displayOnly": true,
+            "position": {
+                "x": 0.5,
+                "y": 0.15
+            },
+            "size": {
+                "width": 0.4,
+                "height": 0.25
+            },
+            "mapping": {
+                "axis": "LX",
+                "source": "gyroscope",
+                "sensitivity": 1.0
+            }
+        },
+        {
+            "id": "gear_up",
+            "type": "button",
+            "position": {
+                "x": 0.05,
+                "y": 0.55
+            },
+            "size": {
+                "width": 0.12,
+                "height": 0.15
+            },
+            "mapping": {
+                "button": "RB"
+            }
+        },
+        {
+            "id": "gear_down",
+            "type": "button",
+            "position": {
+                "x": 0.05,
+                "y": 0.72
+            },
+            "size": {
+                "width": 0.12,
+                "height": 0.15
+            },
+            "mapping": {
+                "button": "LB"
+            }
+        },
+        {
+            "id": "brake",
+            "type": "analog",
+            "position": {
+                "x": 0.2,
+                "y": 0.6
+            },
+            "size": {
+                "width": 0.18,
+                "height": 0.3
+            },
+            "mapping": {
+                "trigger": "LT"
+            }
+        },
+        {
+            "id": "throttle",
+            "type": "analog",
+            "position": {
+                "x": 0.75,
+                "y": 0.6
+            },
+            "size": {
+                "width": 0.2,
+                "height": 0.3
+            },
+            "mapping": {
+                "trigger": "RT"
+            }
+        }
+    ]
+}

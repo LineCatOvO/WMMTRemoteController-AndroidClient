@@ -16,7 +16,6 @@ public class InputState {
     private List<String> keyboard;
     private MouseState mouse;
     private JoystickState joystick;
-    private GyroscopeState gyroscope;
 
     // 构造函数
     public InputState() {
@@ -25,7 +24,6 @@ public class InputState {
         this.keyboard = new ArrayList<>();
         this.mouse = new MouseState();
         this.joystick = new JoystickState();
-        this.gyroscope = new GyroscopeState();
     }
     
     // Copy构造函数
@@ -47,13 +45,6 @@ public class InputState {
         this.joystick.setY(other.joystick.getY());
         this.joystick.setDeadzone(other.joystick.getDeadzone());
         this.joystick.setSmoothing(other.joystick.getSmoothing());
-        
-        this.gyroscope = new GyroscopeState();
-        this.gyroscope.setPitch(other.gyroscope.getPitch());
-        this.gyroscope.setRoll(other.gyroscope.getRoll());
-        this.gyroscope.setYaw(other.gyroscope.getYaw());
-        this.gyroscope.setDeadzone(other.gyroscope.getDeadzone());
-        this.gyroscope.setSmoothing(other.gyroscope.getSmoothing());
     }
 
     // getter和setter
@@ -97,13 +88,7 @@ public class InputState {
         this.joystick = joystick;
     }
 
-    public GyroscopeState getGyroscope() {
-        return gyroscope;
-    }
 
-    public void setGyroscope(GyroscopeState gyroscope) {
-        this.gyroscope = gyroscope;
-    }
     
     /**
      * 清除所有键盘按键
@@ -212,56 +197,6 @@ public class InputState {
         }
     }
 
-    // 内部类：陀螺仪状态
-    public static class GyroscopeState {
-        private float pitch;
-        private float roll;
-        private float yaw;
-        private float deadzone;
-        private float smoothing;
-
-        // getter和setter
-        public float getPitch() {
-            return pitch;
-        }
-
-        public void setPitch(float pitch) {
-            this.pitch = pitch;
-        }
-
-        public float getRoll() {
-            return roll;
-        }
-
-        public void setRoll(float roll) {
-            this.roll = roll;
-        }
-
-        public float getYaw() {
-            return yaw;
-        }
-
-        public void setYaw(float yaw) {
-            this.yaw = yaw;
-        }
-
-        public float getDeadzone() {
-            return deadzone;
-        }
-
-        public void setDeadzone(float deadzone) {
-            this.deadzone = deadzone;
-        }
-
-        public float getSmoothing() {
-            return smoothing;
-        }
-
-        public void setSmoothing(float smoothing) {
-            this.smoothing = smoothing;
-        }
-    }
-
     @Override
     public String toString() {
         return "InputState{" +
@@ -270,7 +205,6 @@ public class InputState {
                 ", keyboard=" + keyboard +
                 ", mouse=" + mouse +
                 ", joystick=" + joystick +
-                ", gyroscope=" + gyroscope +
                 '}';
     }
 }

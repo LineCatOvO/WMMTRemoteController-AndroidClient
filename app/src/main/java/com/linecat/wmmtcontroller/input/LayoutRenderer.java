@@ -10,8 +10,10 @@ import android.view.MotionEvent;
 import android.view.View;
 
 import com.linecat.wmmtcontroller.model.RawInput;
+import com.linecat.wmmtcontroller.input.Region;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 布局渲染器
@@ -37,6 +39,9 @@ public class LayoutRenderer extends View {
 
     // 输入处理器
     private RawInput rawInput;
+    
+    // 输入控制器，用于同步输入状态
+    private InteractionCapture inputController;
 
     // 布局是否启用
     private boolean isLayoutEnabled = false;
@@ -261,23 +266,22 @@ public class LayoutRenderer extends View {
      * 更新输入状态
      */
     private void updateInputState(float x, float y, boolean isPressed) {
-        if (currentTouchRegion == null) {
+        if (currentTouchRegion == null || inputController == null) {
             return;
         }
 
-        // 根据区域类型更新不同的输入状态
+        // 根据区域类型直接发送事件到输入控制器
         switch (currentTouchRegion.getType()) {
             case BUTTON:
-                // 更新按钮状态
-                // 使用RawInput的gamepad数据来存储按钮状态
-                rawInput.getGamepad().setButton(currentTouchRegion.getId(), isPressed);
+                // 直接发送按钮事件到输入控制器
+                sendButtonEventToController(currentTouchRegion.getId(), isPressed);
                 break;
 
             case AXIS:
                 // 计算轴的归一化值（0.0-1.0）
                 float axisValue = calculateAxisValue(currentTouchRegion, x, y);
-                // 使用RawInput的gamepad数据来存储轴值
-                rawInput.getGamepad().setAxis(currentTouchRegion.getId(), axisValue);
+                // 直接发送轴事件到输入控制器
+                sendAxisEventToController(currentTouchRegion.getId(), axisValue);
                 break;
 
             case GYROSCOPE:
@@ -285,16 +289,36 @@ public class LayoutRenderer extends View {
                 break;
 
             case GESTURE:
-                // 处理手势
-                // 使用RawInput的触摸数据来存储手势信息
-                rawInput.setTouchPressed(isPressed);
-                rawInput.setTouchX(x);
-                rawInput.setTouchY(y);
+                // 发送手势事件到输入控制器
+                inputController.processTouchInput(x, y, isPressed);
                 break;
         }
-
-        // 触发输入状态变化事件
-        // TODO: 添加事件监听机制
+    }
+    
+    /**
+     * 发送按钮事件到输入控制器
+     */
+    private void sendButtonEventToController(String buttonId, boolean isPressed) {
+        if (inputController != null) {
+            // 使用InputController的方法更新游戏手柄按钮状态
+            synchronized (inputController) {
+                inputController.getCurrentRawInput().getGamepad().setButton(buttonId, isPressed);
+            }
+            inputController.triggerProjection();
+        }
+    }
+    
+    /**
+     * 发送轴事件到输入控制器
+     */
+    private void sendAxisEventToController(String axisId, float value) {
+        if (inputController != null) {
+            // 使用InputController的方法更新游戏手柄轴状态
+            synchronized (inputController) {
+                inputController.getCurrentRawInput().getGamepad().setAxis(axisId, value);
+            }
+            inputController.triggerProjection();
+        }
     }
 
     /**
@@ -310,10 +334,14 @@ public class LayoutRenderer extends View {
         return 1.0f - relY; // 从上到下，值从1.0到0.0
     }
 
+
+    
     /**
-     * 获取当前输入状态
+     * 设置输入控制器，用于同步输入状态
      */
-    public RawInput getRawInput() {
-        return rawInput;
+    public void setInputController(InteractionCapture inputController) {
+        this.inputController = inputController;
     }
+    
+
 }

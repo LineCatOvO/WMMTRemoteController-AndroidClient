@@ -253,11 +253,7 @@ public class InputPipeline {
      * @param state 输入状态
      */
     private void setRawSensorData(RawInput input, InputState state) {
-        state.getGyroscope().setPitch(input.getGyroPitch());
-        state.getGyroscope().setRoll(input.getGyroRoll());
-        state.getGyroscope().setYaw(input.getGyroYaw());
-        state.getGyroscope().setDeadzone(gyroDeadzone);
-        state.getGyroscope().setSmoothing(gyroSmoothing);
+        // 陀螺仪数据已经在processSteeringInput中转换为键盘操作，无需在此处设置
     }
 
     // 辅助方法：应用死区

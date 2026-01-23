@@ -82,10 +82,17 @@ public class MappingLayerHandler {
     private void processKeyboardMapping(Region region, RawInput rawInput, InputState inputState) {
         // 处理键盘映射
         String keyCode = region.getMappingKey();
-        boolean isPressed = false; // 实际应从 Operation 层结果获取
+        // 从 RawInput 获取当前按钮状态
+        boolean isPressed = rawInput.getGamepad().getButtons().getOrDefault(region.getId(), false);
         
         // 更新输入状态
-        // inputState.setKeyPressed(keyCode, isPressed);
+        if (keyCode != null) {
+            if (isPressed) {
+                inputState.getKeyboard().add(keyCode);
+            } else {
+                inputState.getKeyboard().remove(keyCode);
+            }
+        }
         
         Log.d(TAG, "Keyboard mapping processed: " + region.getId() + ", key: " + keyCode + ", pressed: " + isPressed);
     }
@@ -98,21 +105,20 @@ public class MappingLayerHandler {
         String axis = region.getMappingAxis();
         String button = region.getMappingButton();
         
-        // 从 Operation 层获取值
-        float axisValue = 0.0f; // 实际应从 Operation 层结果获取
-        boolean buttonPressed = false; // 实际应从 Operation 层结果获取
+        // 从 RawInput 获取当前按钮状态
+        boolean buttonPressed = rawInput.getGamepad().getButtons().getOrDefault(region.getId(), false);
         
         // 应用输出范围、曲线等
+        float axisValue = 0.0f; // 暂时设为0，如果需要轴映射则应从相应数据源获取
         axisValue = applyOutputRange(axisValue, region.getOutputRange());
         axisValue = applyCurve(axisValue, region.getCurve());
         
-        // 更新输入状态
-        // if (axis != null) {
-        //     inputState.setGamepadAxis(axis, axisValue);
-        // }
-        // if (button != null) {
-        //     inputState.setGamepadButton(button, buttonPressed);
-        // }
+        // 对于游戏手柄按钮，将其添加到键盘状态中
+        if (button != null && buttonPressed) {
+            inputState.getKeyboard().add(button);
+        } else if (button != null && !buttonPressed) {
+            inputState.getKeyboard().remove(button); // 确保松开按钮时从键盘状态中移除
+        }
         
         Log.d(TAG, "Gamepad mapping processed: " + region.getId() + ", axis: " + axis + ", value: " + axisValue + ", button: " + button + ", pressed: " + buttonPressed);
     }
@@ -123,9 +129,11 @@ public class MappingLayerHandler {
     private void processCustomMapping(Region region, RawInput rawInput, InputState inputState) {
         // 处理自定义映射
         String customTarget = region.getCustomMappingTarget();
-        Object customValue = null; // 实际应从 Operation 层结果获取
+        // 从 RawInput 获取当前按钮状态作为示例值
+        Object customValue = rawInput.getGamepad().getButtons().getOrDefault(region.getId(), false);
         
-        // 更新输入状态
+        // 更新输入状态 - 这里可以根据具体需求进行处理
+        // 示例：将布尔值存储到自定义映射中
         // inputState.setCustomMapping(customTarget, customValue);
         
         Log.d(TAG, "Custom mapping processed: " + region.getId() + ", target: " + customTarget + ", value: " + customValue);

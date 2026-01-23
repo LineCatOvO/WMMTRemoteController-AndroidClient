@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.util.Log;
 
 import com.google.gson.Gson;
+import com.linecat.wmmtcontroller.model.FormattedInputMessage;
 import com.linecat.wmmtcontroller.model.InputState;
 
 import java.io.IOException;
@@ -176,17 +177,8 @@ public class WebSocketClient {
     public void sendInputState(InputState inputState) {
         try {
             // 创建包含类型字段的消息对象
-            class InputMessage {
-                private String type = "input_state";
-                private InputState data;
-                
-                public InputMessage(InputState data) {
-                    this.data = data;
-                }
-            }
-            
-            // 包装输入状态
-            InputMessage message = new InputMessage(inputState);
+            // 创建符合服务端格式的消息对象
+            FormattedInputMessage message = new FormattedInputMessage(inputState);
             
             // 将消息转换为JSON
             String json = gson.toJson(message);

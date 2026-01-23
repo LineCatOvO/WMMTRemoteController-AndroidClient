@@ -1,7 +1,9 @@
 package com.linecat.wmmtcontroller.model;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 最终输入状态模型
@@ -9,7 +11,7 @@ import java.util.List;
  * 用于发送到服务端的最终输入状态
  */
 public class InputState {
-    private long frameId;
+    private Long frameId;
     private String runtimeStatus;
     private List<String> keyboard;
     private MouseState mouse;
@@ -18,7 +20,7 @@ public class InputState {
 
     // 构造函数
     public InputState() {
-        this.frameId = 0;
+        this.frameId = null; // 根据服务端类型定义，frameId是可选的
         this.runtimeStatus = "ok";
         this.keyboard = new ArrayList<>();
         this.mouse = new MouseState();
@@ -109,6 +111,14 @@ public class InputState {
      */
     public void clearAllKeys() {
         this.keyboard.clear();
+    }
+    
+    /**
+     * 获取键盘按键集合，用于序列化到服务端
+     * 服务端期望的是Set<string>格式，所以返回数组
+     */
+    public String[] getKeyboardArray() {
+        return keyboard.toArray(new String[keyboard.size()]);
     }
 
     // 内部类：鼠标状态

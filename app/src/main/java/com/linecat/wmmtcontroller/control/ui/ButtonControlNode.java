@@ -1,4 +1,4 @@
-package com.linecat.wmmtcontroller.control;
+package com.linecat.wmmtcontroller.control.ui;
 
 import com.linecat.wmmtcontroller.model.RawInput;
 import com.linecat.wmmtcontroller.input.LayoutSnapshot;

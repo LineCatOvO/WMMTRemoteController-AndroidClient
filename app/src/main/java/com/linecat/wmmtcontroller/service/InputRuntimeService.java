@@ -29,6 +29,9 @@ import com.linecat.wmmtcontroller.input.LayoutSnapshot;
 import com.linecat.wmmtcontroller.input.NormalizedEvent;
 import com.linecat.wmmtcontroller.input.OutputController;
 import com.linecat.wmmtcontroller.input.ProfileManager;
+import com.linecat.wmmtcontroller.core.layout.EnhancedLayoutEngine;
+import com.linecat.wmmtcontroller.control.mapping.DeviceMapping;
+import com.linecat.wmmtcontroller.util.LayoutEngineAdapter;
 import com.linecat.wmmtcontroller.input.RegionResolver;
 import com.linecat.wmmtcontroller.input.SafetyController;
 import com.linecat.wmmtcontroller.input.ScriptProfile;
@@ -54,6 +57,8 @@ public class InputRuntimeService extends Service {
     private InputScriptEngine scriptEngine;
     private InteractionCapture inputController;
     private LayoutEngine layoutEngine;
+    private EnhancedLayoutEngine enhancedLayoutEngine;  // 新版布局引擎
+    private LayoutEngineAdapter layoutEngineAdapter;  // 布局引擎适配器
     private OutputController outputController;
     private SafetyController safetyController;
     private TransportController transportController;
@@ -286,6 +291,13 @@ public class InputRuntimeService extends Service {
         layoutEngine = new LayoutEngine(outputController);
         layoutEngine.setContext(this);
         layoutEngine.init();
+        
+        // 创建新版布局引擎
+        DeviceMapping defaultMapping = new DeviceMapping("default_mapping", "默认映射", DeviceMapping.MappingType.KEYBOARD);
+        enhancedLayoutEngine = new EnhancedLayoutEngine(defaultMapping);
+        
+        // 创建布局引擎适配器，默认使用旧引擎以保证兼容性
+        layoutEngineAdapter = new LayoutEngineAdapter(layoutEngine, enhancedLayoutEngine);
 
         // 创建脚本引擎
         scriptEngine = new JsInputScriptEngine(this);
@@ -373,6 +385,11 @@ public class InputRuntimeService extends Service {
         // 清理布局引擎
         if (layoutEngine != null) {
             layoutEngine.reset();
+        }
+        
+        // 清理新版布局引擎
+        if (enhancedLayoutEngine != null) {
+            enhancedLayoutEngine.reset();
         }
         
         // 清理输出控制器
@@ -491,6 +508,26 @@ public class InputRuntimeService extends Service {
      */
     public void unloadCurrentProfile() {
         profileManager.unloadCurrentProfile();
+    }
+    
+    /**
+     * 切换到新版布局引擎
+     */
+    public void switchToNewEngine() {
+        if (layoutEngineAdapter != null) {
+            layoutEngineAdapter.setUseNewEngine(true);
+            Log.d(TAG, "Switched to new layout engine");
+        }
+    }
+    
+    /**
+     * 切换回旧版布局引擎
+     */
+    public void switchToLegacyEngine() {
+        if (layoutEngineAdapter != null) {
+            layoutEngineAdapter.setUseNewEngine(false);
+            Log.d(TAG, "Switched back to legacy layout engine");
+        }
     }
     
     /**

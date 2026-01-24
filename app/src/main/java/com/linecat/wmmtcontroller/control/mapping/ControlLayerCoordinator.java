@@ -1,8 +1,11 @@
-package com.linecat.wmmtcontroller.control;
+package com.linecat.wmmtcontroller.control.mapping;
 
 import com.linecat.wmmtcontroller.model.RawInput;
 import com.linecat.wmmtcontroller.model.InputState;
 import com.linecat.wmmtcontroller.input.LayoutSnapshot;
+import com.linecat.wmmtcontroller.control.ui.ControlNode;
+import com.linecat.wmmtcontroller.control.operation.ControlAction;
+import com.linecat.wmmtcontroller.control.mapping.DeviceMapping;
 
 import java.util.List;
 import java.util.ArrayList;

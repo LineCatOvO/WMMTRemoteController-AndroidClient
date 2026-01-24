@@ -1,7 +1,8 @@
-package com.linecat.wmmtcontroller.control;
+package com.linecat.wmmtcontroller.control.mapping;
 
 import com.linecat.wmmtcontroller.model.InputState;
 import com.linecat.wmmtcontroller.model.RawInput;
+import com.linecat.wmmtcontroller.control.operation.ControlAction;
 
 import java.util.Map;
 import java.util.HashMap;

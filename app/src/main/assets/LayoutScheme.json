@@ -73,11 +73,7 @@
                         "properties": {
                             "mode": {
                                 "type": "string",
-                                "enum": [
-                                    "absolute",
-                                    "percent",
-                                    "aspect"
-                                ],
+                                "enum": ["absolute", "percent", "aspect"],
                                 "description": "Sizing strategy."
                             },
                             "width": {

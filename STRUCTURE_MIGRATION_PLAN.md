@@ -11,6 +11,7 @@
 ## 2. 迁移前准备
 
 ### 2.1 备份当前状态
+
 ```bash
 # 确保所有更改已提交
 git add .
@@ -18,6 +19,7 @@ git commit -m "Backup before structure migration"
 ```
 
 ### 2.2 验证当前系统
+
 ```bash
 # 确保当前系统可以正常编译和运行
 ./gradlew build
@@ -28,6 +30,7 @@ git commit -m "Backup before structure migration"
 ### 阶段1：包结构调整 (第1周)
 
 #### 3.1 创建新的包结构
+
 ```
 src/main/java/com/linecat/wmmtcontroller/
 ├── control/
@@ -71,6 +74,7 @@ src/main/java/com/linecat/wmmtcontroller/
 ```
 
 #### 3.2 移动类文件
+
 ```bash
 # 移动Control包中的UI层类到control.ui
 mv src/main/java/com/linecat/wmmtcontroller/control/{ControlNode.java,ButtonControlNode.java,AxisControlNode.java,GyroControlNode.java,UINodeManager.java} \
@@ -96,6 +100,7 @@ mv src/main/java/com/linecat/wmmtcontroller/input/{InputScriptEngine.java,JsInpu
 ```
 
 #### 3.3 更新import语句
+
 需要批量更新所有Java文件中的import语句：
 
 ```java
@@ -115,6 +120,7 @@ import com.linecat.wmmtcontroller.control.mapping.DeviceMapping;
 #### 2.1 为旧架构类添加@Deprecated注解
 
 **LayoutEngine.java**:
+
 ```java
 @Deprecated
 @Stable("Use EnhancedLayoutEngine instead")
@@ -124,6 +130,7 @@ public class LayoutEngine {
 ```
 
 **各处理器类**:
+
 ```java
 @Deprecated
 public class UILayerHandler {
@@ -230,13 +237,16 @@ public class InputRuntimeService extends Service {
 ### 阶段5：测试与验证 (第7周)
 
 #### 5.1 全面测试
+
 - 单元测试：确保所有类都能正常编译和运行
 - 集成测试：验证新旧架构切换的平滑性
 - 功能测试：验证所有输入功能正常工作
 - 性能测试：确保新架构性能不低于旧架构
 
 #### 5.2 清理废弃类
+
 在确认新架构稳定运行后，删除废弃的类：
+
 - LayoutEngine.java
 - UILayerHandler.java
 - OperationLayerHandler.java

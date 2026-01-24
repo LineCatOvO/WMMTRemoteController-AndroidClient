@@ -1,0 +1,225 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Input Configuration",
+    "description": "Production-grade schema defining UI layout, abstract operations, and output mappings.",
+    "type": "object",
+    "additionalProperties": false,
+
+    "properties": {
+        "version": {
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+            "description": "Semantic version of the configuration."
+        },
+
+        "ui": {
+            "type": "array",
+            "description": "Defines Android-side UI layout and visual elements.",
+            "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Unique identifier for the UI element."
+                    },
+                    "enabled": {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "Whether the UI element is visible and active."
+                    },
+
+                    "anchor": {
+                        "type": "string",
+                        "enum": [
+                            "top-left",
+                            "top-center",
+                            "top-right",
+                            "center-left",
+                            "center",
+                            "center-right",
+                            "bottom-left",
+                            "bottom-center",
+                            "bottom-right"
+                        ],
+                        "description": "Anchor position relative to the screen."
+                    },
+
+                    "offset": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                            "x": {
+                                "type": "number",
+                                "description": "Horizontal offset from anchor."
+                            },
+                            "y": {
+                                "type": "number",
+                                "description": "Vertical offset from anchor."
+                            },
+                            "unit": {
+                                "type": "string",
+                                "enum": ["px", "percent"],
+                                "default": "px",
+                                "description": "Unit for offset values."
+                            }
+                        },
+                        "required": ["x", "y"]
+                    },
+
+                    "size": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                            "mode": {
+                                "type": "string",
+                                "enum": [
+                                    "absolute",
+                                    "percent",
+                                    "aspect"
+                                ],
+                                "description": "Sizing strategy."
+                            },
+                            "width": {
+                                "type": "number",
+                                "description": "Width value."
+                            },
+                            "height": {
+                                "type": "number",
+                                "description": "Height value."
+                            },
+                            "aspectRatio": {
+                                "type": "number",
+                                "exclusiveMinimum": 0,
+                                "description": "Width/height ratio when mode is aspect."
+                            }
+                        },
+                        "required": ["mode"]
+                    },
+
+                    "opacity": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1,
+                        "default": 1,
+                        "description": "UI element opacity."
+                    },
+
+                    "resource": {
+                        "type": "string",
+                        "description": "Visual resource identifier (image or vector)."
+                    },
+
+                    "hitbox": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                            "shape": {
+                                "type": "string",
+                                "enum": ["rect", "circle"],
+                                "default": "rect",
+                                "description": "Hitbox shape."
+                            },
+                            "padding": {
+                                "type": "number",
+                                "minimum": 0,
+                                "default": 0,
+                                "description": "Extra hitbox padding in pixels."
+                            }
+                        }
+                    }
+                },
+                "required": ["id", "anchor", "offset", "size"]
+            },
+            "minItems": 1,
+            "description": "Array of UI element definitions."
+        },
+
+        "operation": {
+            "type": "array",
+            "description": "Defines abstract operations independent of UI and hardware.",
+            "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Unique identifier for the operation."
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["binary", "axis"],
+                        "description": "Binary (on/off) or continuous axis operation."
+                    },
+
+                    "range": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                            "min": {
+                                "type": "number",
+                                "description": "Minimum value."
+                            },
+                            "max": {
+                                "type": "number",
+                                "description": "Maximum value."
+                            }
+                        },
+                        "required": ["min", "max"]
+                    },
+
+                    "default": {
+                        "type": "number",
+                        "description": "Default value when no input is active."
+                    }
+                },
+                "required": ["id", "type"]
+            },
+            "minItems": 1,
+            "description": "Array of abstract operation definitions."
+        },
+
+        "mapping": {
+            "type": "array",
+            "description": "Maps abstract operations to actual output keys or device channels.",
+            "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "operation": {
+                        "type": "string",
+                        "description": "Referenced abstract operation id."
+                    },
+
+                    "output": {
+                        "type": "string",
+                        "description": "Concrete output key or device channel identifier."
+                    },
+
+                    "trigger": {
+                        "type": "string",
+                        "enum": ["press", "release", "axis"],
+                        "description": "Trigger condition."
+                    },
+
+                    "scale": {
+                        "type": "number",
+                        "default": 1,
+                        "description": "Scaling factor for axis values."
+                    },
+
+                    "invert": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Invert output value."
+                    }
+                },
+                "required": ["operation", "output", "trigger"]
+            },
+            "minItems": 1,
+            "description": "Array of operation-to-output bindings."
+        }
+    },
+
+    "required": ["version", "ui", "operation", "mapping"]
+}

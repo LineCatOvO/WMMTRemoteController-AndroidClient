@@ -90,6 +90,7 @@ graph TB
 ## 2. 详细依赖关系
 
 ### 2.1 InputRuntimeService 的依赖
+
 ```
 InputRuntimeService
 ├── android.app.Service (继承)
@@ -112,6 +113,7 @@ InputRuntimeService
 ```
 
 ### 2.2 LayoutEngine 的依赖
+
 ```
 LayoutEngine
 ├── LayoutSnapshot (使用)
@@ -126,6 +128,7 @@ LayoutEngine
 ```
 
 ### 2.3 新三层架构依赖
+
 ```
 EnhancedLayoutEngine
 ├── ThreeTierControlManager
@@ -187,10 +190,12 @@ public class ProfileManager {
 ## 4. 耦合度分析
 
 ### 4.1 高耦合组件
+
 - **InputRuntimeService**: 耦合度过高，依赖过多组件
 - **LayoutEngine**: 与多个处理器紧密耦合
 
 ### 4.2 低耦合组件
+
 - **ControlNode/ControlAction/DeviceMapping**: 设计良好，职责单一
 
 ## 5. 建议的重构方案

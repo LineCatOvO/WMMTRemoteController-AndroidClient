@@ -7,11 +7,13 @@
 ## 三层架构介绍
 
 ### 0. 三层架构总控管理器
+
 - **职责**：统一管理UI层、Operation层和Mapping层，提供完整的三层架构控制
 - **实现类**：
   - `ThreeTierControlManager`：整合三个层级管理器的总控
 
 ### 1. ControlNode层（控制节点层）
+
 - **职责**：对应三层架构中的UI层，负责接收原始输入（触控、陀螺仪等），执行传感器级输入处理，输出归一化后的抽象值
 - **实现类**：
   - `ButtonControlNode`：按钮类型的控制节点
@@ -19,26 +21,31 @@
   - `GyroControlNode`：陀螺仪类型的控制节点
 
 ### 2. ControlAction层（控制动作层）
+
 - **职责**：对应三层架构中的Operation层，负责定义抽象控制语义（方向盘、油门、刹车、按钮类操作）和执行抽象控制语义处理
 - **特性**：包含死区、平滑、曲线等处理算法
 
 ### 3. DeviceMapping层（设备映射层）
+
 - **职责**：对应三层架构中的Mapping层，负责将抽象语义映射到设备输出和执行设备适配
 - **特性**：支持键盘、游戏手柄、鼠标等多种设备映射
 
 ## 各层管理器介绍
 
 ### UI层管理器
+
 - **职责**：作为UI层的总控，负责管理所有ControlNode节点，处理节点的渲染和事件，统一向Operation层传递数据
 - **实现类**：
   - `UINodeManager`：UI节点管理器
 
 ### Operation层管理器
+
 - **职责**：作为Operation层的总控，负责管理所有ControlAction动作，处理动作的语义转换和处理算法，统一向Mapping层传递数据
 - **实现类**：
   - `OperationNodeManager`：Operation节点管理器
 
 ### Mapping层管理器
+
 - **职责**：作为Mapping层的总控，负责管理所有DeviceMapping映射，处理设备映射和适配，统一生成最终的输入状态
 - **实现类**：
   - `MappingNodeManager`：Mapping节点管理器
@@ -46,7 +53,9 @@
 ## 迁移步骤
 
 ### 步骤1：引入新架构类
+
 将新的三层架构类引入到项目中：
+
 - `ControlNode.java`
 - `ControlAction.java`
 - `DeviceMapping.java`
@@ -58,6 +67,7 @@
 - `ThreeTierControlManager.java`
 
 ### 步骤2：使用转换器迁移现有布局
+
 使用`LayoutToControlNodeConverter`将现有的Region布局转换为ControlNode体系：
 
 ```java
@@ -71,6 +81,7 @@ LayoutSnapshot layoutSnapshot = LayoutToControlNodeConverter.convertControlNodes
 ```
 
 ### 步骤3：更新布局引擎
+
 可以选择使用新的`NewLayoutEngine`或`EnhancedLayoutEngine`替代原有的`LayoutEngine`：
 
 **使用EnhancedLayoutEngine（推荐）：**
@@ -100,6 +111,7 @@ newLayoutEngine.loadLayoutFromSnapshot(existingLayoutSnapshot);
 ```
 
 ### 步骤4：集成到服务
+
 在`InputRuntimeService`中逐步替换原有布局引擎：
 
 ```java
@@ -118,42 +130,51 @@ private void initializeComponents() {
 ## 优势
 
 ### 1. 更好的模块化
+
 - 每一层职责明确，易于单独测试和维护
 - 可以独立修改某一层而不影响其他层
 
 ### 2. 更强的扩展性
+
 - 可以轻松添加新的控制节点类型
 - 支持多种设备映射配置
 
 ### 3. 更好的性能
+
 - 三层架构提供了清晰的数据流
 - 减少了不必要的重复计算
 
 ## 迁移注意事项
 
 ### 1. 兼容性
+
 - 现有的布局文件仍可使用，通过转换器自动转换
 - 逐步迁移，可以保持旧系统作为备用
 
 ### 2. 测试
+
 - 在迁移过程中，需要充分测试各类输入场景
 - 确保转换后的控制节点行为与原Region一致
 
 ### 3. 性能
+
 - 新架构可能会略微增加内存使用，但会提高处理效率
 - 建议在真实设备上测试性能表现
 
 ## 未来发展方向
 
 ### 1. 高级控制节点
+
 - 可以轻松添加复杂的手势识别节点
 - 支持AI增强的输入预测节点
 
 ### 2. 动态映射
+
 - 支持根据游戏类型动态调整设备映射
 - 提供用户自定义映射界面
 
 ### 3. 输入预处理
+
 - 在ControlAction层可以添加高级预处理算法
 - 支持输入平滑、预测等功能
 

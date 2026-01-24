@@ -7,13 +7,16 @@
 ## 2. 已完成的迁移任务
 
 ### 2.1 包结构调整
+
 - **原结构**：
+
   ```
   com.linecat.wmmtcontroller/
   └── control/ (混合了UI、Operation、Mapping三层)
   ```
 
 - **新结构**：
+
   ```
   com.linecat.wmmtcontroller/
   ├── control/
@@ -60,10 +63,13 @@
 | `control/EnhancedLayoutEngine.java` | `core/layout/EnhancedLayoutEngine.java` | 增强版布局引擎 |
 
 ### 2.3 包声明更新
+
 所有移动的类文件均已更新包声明，确保导入路径正确。
 
 ### 2.4 导入语句修正
+
 所有受影响的类文件均已更新相应的导入语句，包括：
+
 - `ControlNode` → `com.linecat.wmmtcontroller.control.ui.ControlNode`
 - `ControlAction` → `com.linecat.wmmtcontroller.control.operation.ControlAction`
 - `DeviceMapping` → `com.linecat.wmmtcontroller.control.mapping.DeviceMapping`
@@ -72,12 +78,15 @@
 ## 3. 兼容性处理
 
 ### 3.1 适配器模式
+
 创建了 `LayoutEngineAdapter.java` 用于在新旧布局引擎之间切换：
+
 - 默认使用旧版引擎，确保兼容性
 - 可随时切换到新版引擎
 - 提供平滑迁移路径
 
 ### 3.2 InputRuntimeService 更新
+
 - 保留了旧版 `LayoutEngine` 以确保兼容性
 - 添加了新版 `EnhancedLayoutEngine`
 - 添加了 `LayoutEngineAdapter` 进行引擎切换
@@ -86,16 +95,19 @@
 ## 4. 新架构优势
 
 ### 4.1 清晰的分层
+
 - **UI层**：负责界面交互和事件响应
 - **Operation层**：负责业务逻辑处理
 - **Mapping层**：负责设备映射和输出
 
 ### 4.2 职责分离
+
 - 每层职责明确，降低耦合度
 - 便于单独测试和维护
 - 支持灵活扩展
 
 ### 4.3 模块化设计
+
 - 每层有独立的管理器
 - 支持插件化开发
 - 便于团队协作
@@ -103,12 +115,14 @@
 ## 5. 后续步骤
 
 ### 5.1 渐进式迁移
+
 1. 在测试环境中验证新版引擎功能
 2. 逐步将功能迁移到新架构
 3. 监控性能和稳定性
 4. 最终完全切换到新架构
 
 ### 5.2 代码优化
+
 1. 标记旧架构类为 `@Deprecated`
 2. 创建迁移文档
 3. 逐步清理废弃代码

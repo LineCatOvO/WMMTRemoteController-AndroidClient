@@ -3,6 +3,7 @@
 ## 1. 包结构调整建议
 
 ### 1.1 当前包结构
+
 ```
 com.linecat.wmmtcontroller/
 ├── annotation/           # 注解类
@@ -18,6 +19,7 @@ com.linecat.wmmtcontroller/
 ```
 
 ### 1.2 推荐的包结构调整
+
 ```
 com.linecat.wmmtcontroller/
 ├── annotation/              # 注解类
@@ -43,10 +45,12 @@ com.linecat.wmmtcontroller/
 ## 2. 类文件详细分析
 
 ### 2.1 Annotation包
+
 - `Experimental.java` - 实验性功能注解
 - `Stable.java` - 稳定版本注解
 
 ### 2.2 Control包 (新添加的三层架构)
+
 - `ControlNode.java` - 控制节点抽象基类 (UI层)
 - `ControlAction.java` - 控制动作类 (Operation层)
 - `DeviceMapping.java` - 设备映射类 (Mapping层)
@@ -63,6 +67,7 @@ com.linecat.wmmtcontroller/
 - `ControlArchitectureExample.java` - 架构使用示例
 
 ### 2.3 Model包 (数据模型)
+
 - `ConnectionInfo.java` - 连接信息模型
 - `FormattedInputMessage.java` - 格式化输入消息模型
 - `InputMetadata.java` - 输入元数据模型
@@ -70,6 +75,7 @@ com.linecat.wmmtcontroller/
 - `RawInput.java` - 原始输入模型
 
 ### 2.4 Input包 (输入处理核心)
+
 - `AxisEvent.java` - 轴事件
 - `ButtonEvent.java` - 按钮事件
 - `CurveProcessor.java` - 曲线处理器
@@ -113,6 +119,7 @@ com.linecat.wmmtcontroller/
 - `UILayerHandler.java` - UI层处理器
 
 ### 2.5 Service包 (服务层)
+
 - `InputCollector.java` - 输入收集器
 - `InputRuntimeService.java` - 输入运行时服务 (核心服务)
 - `OutputDispatcher.java` - 输出调度器
@@ -125,24 +132,30 @@ com.linecat.wmmtcontroller/
 - `WebSocketClient.java` - WebSocket客户端
 
 ### 2.6 Database包
+
 - `DatabaseHelper.java` - 数据库助手
 
 ### 2.7 FloatWindow包
+
 - `FloatWindowManager.java` - 浮窗管理器
 - `OverlayController.java` - 覆盖层控制器
 
 ### 2.8 Monitor包
+
 - `SystemMonitor.java` - 系统监控器
 
 ### 2.9 Migration包
+
 - `LayoutToControlNodeConverter.java` - 布局到控制节点转换器
 
 ### 2.10 其他
+
 - `MainActivity.java` - 主Activity
 
 ## 3. 废弃类识别
 
 ### 3.1 可能废弃的类
+
 1. `LayoutEngine.java` - 旧版布局引擎，已被新的三层架构替代
 2. `UILayerHandler.java` - UI层处理器，功能与新架构重复
 3. `OperationLayerHandler.java` - 操作层处理器，功能与新架构重复
@@ -152,6 +165,7 @@ com.linecat.wmmtcontroller/
 7. `RegionResolver.java` - 区域解析器，可能被ControlNode替代
 
 ### 3.2 建议保留的类
+
 - `EventNormalizer.java` - 事件标准化功能仍需保留
 - `SafetyController.java` - 安全控制功能仍需保留
 - `ProfileManager.java` - 配置文件管理功能仍需保留
@@ -160,6 +174,7 @@ com.linecat.wmmtcontroller/
 ## 4. 重复或冗余代码检测
 
 ### 4.1 功能重复的类
+
 1. **布局引擎系列**：
    - `LayoutEngine.java` (旧版) vs `NewLayoutEngine.java`/`EnhancedLayoutEngine.java` (新版)
    - 建议：逐步迁移至新版，旧版可标记为@Deprecated
@@ -173,12 +188,14 @@ com.linecat.wmmtcontroller/
    - 建议：逐步替换为新的三层架构
 
 ### 4.2 命名相似的类
+
 - `OutputController.java` vs `OutputDispatcher.java`/`OutputDispatcherImpl.java`
 - `LayoutEngine.java` vs `LayoutManager.java` vs `LayoutRenderer.java`
 
 ## 5. 依赖与调用关系分析
 
 ### 5.1 核心依赖链
+
 ```
 InputRuntimeService (核心服务)
 ├── LayoutEngine (布局引擎)
@@ -193,6 +210,7 @@ InputRuntimeService (核心服务)
 ```
 
 ### 5.2 新架构依赖链
+
 ```
 EnhancedLayoutEngine (增强版布局引擎)
 ├── ThreeTierControlManager (三层总控)
@@ -206,6 +224,7 @@ EnhancedLayoutEngine (增强版布局引擎)
 ```
 
 ### 5.3 关键引用关系
+
 - `InputRuntimeService` 引用了几乎所有核心组件
 - `LayoutEngine` 是旧架构的核心枢纽
 - `ControlLayerCoordinator` 是新架构的协调器
@@ -216,16 +235,19 @@ EnhancedLayoutEngine (增强版布局引擎)
 ### 6.1 分阶段迁移计划
 
 #### 阶段1：核心架构升级
+
 1. 保留 `LayoutEngine.java` 作为过渡，添加 `@Deprecated` 标记
 2. 将 `InputRuntimeService` 逐步迁移到使用 `EnhancedLayoutEngine`
 3. 创建适配器类，使新旧架构可以共存
 
 #### 阶段2：功能迁移
+
 1. 将 `Region` 相关功能迁移到 `ControlNode`
 2. 将 `UILayerHandler` 等处理器功能迁移到新的三层架构
 3. 更新 `InteractionCapture` 以使用新的控制节点
 
 #### 阶段3：完全替换
+
 1. 完全替换旧架构组件
 2. 删除废弃的类
 3. 优化包结构
@@ -246,7 +268,9 @@ EnhancedLayoutEngine (增强版布局引擎)
 | DeviceMapping.java | control/ | 保留在control.mapping子包 | Mapping层核心类 |
 
 ### 6.3 安全删除清单
+
 在确认无引用后可删除的类：
+
 - `LayoutEngine.java` (有替代方案)
 - `UILayerHandler.java` (有替代方案)
 - `OperationLayerHandler.java` (有替代方案)
@@ -255,6 +279,7 @@ EnhancedLayoutEngine (增强版布局引擎)
 - `RegionResolver.java` (有替代方案)
 
 ### 6.4 保留并移动的类
+
 - 所有Control包中的类保持不变，按功能细分到子包
 - `LayoutToControlNodeConverter.java` 保持在migration包中
 - 核心服务类保持在各自包中

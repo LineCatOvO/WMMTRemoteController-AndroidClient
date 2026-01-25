@@ -91,11 +91,14 @@ public class TransportController {
      * 发送输入状态
      */
     public void sendInputState(InputState inputState) {
+        Log.d(TAG, "Attempting to send input state, frameId: " + inputState.getFrameId());
         if (webSocketClient.isConnected()) {
             webSocketClient.sendInputState(inputState);
             totalMessagesSent++;
             lastMessageTime = System.currentTimeMillis();
             Log.d(TAG, "Input state sent, frameId: " + inputState.getFrameId());
+        } else {
+            Log.d(TAG, "WebSocket not connected, input state will be sent when connection is established");
         }
     }
 

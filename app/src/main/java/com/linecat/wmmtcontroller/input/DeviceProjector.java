@@ -13,6 +13,11 @@ import com.linecat.wmmtcontroller.service.TransportController;
  */
 public class DeviceProjector {
     private static final String TAG = "DeviceProjector";
+    
+    // 用于控制日志打印频率的变量
+    private static long lastProjectorLogTime = 0;
+    private static final long PROJECTOR_LOG_INTERVAL = 5000; // 5秒间隔
+    private static int projectorCallCount = 0;
 
     private final TransportController transportController;
     private final LayoutEngine layoutEngine;
@@ -36,9 +41,26 @@ public class DeviceProjector {
         // 发送到服务端
         if (transportController != null && transportController.isConnected()) {
             transportController.sendInputState(inputState);
-            Log.d(TAG, "Input state projected to device, frameId: " + frameId);
+            
+            // 按时间间隔打印日志
+            projectorCallCount++;
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - lastProjectorLogTime >= PROJECTOR_LOG_INTERVAL) {
+                Log.d(TAG, "Device projection summary - Successful projections in interval: " + projectorCallCount + ", last frameId: " + frameId);
+                // 重置计数器
+                projectorCallCount = 0;
+                lastProjectorLogTime = currentTime;
+            }
         } else {
-            Log.d(TAG, "Not connected, skipping input state projection, frameId: " + frameId);
+            // 按时间间隔打印日志
+            projectorCallCount++;
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - lastProjectorLogTime >= PROJECTOR_LOG_INTERVAL) {
+                Log.d(TAG, "Device projection summary - Skipped projections in interval: " + projectorCallCount + ", last frameId: " + frameId);
+                // 重置计数器
+                projectorCallCount = 0;
+                lastProjectorLogTime = currentTime;
+            }
         }
     }
 

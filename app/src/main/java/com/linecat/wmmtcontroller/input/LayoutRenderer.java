@@ -21,6 +21,12 @@ import java.util.Map;
  */
 public class LayoutRenderer extends View {
     private static final String TAG = "LayoutRenderer";
+    
+    // 用于控制日志打印频率的变量
+    private static long lastTouchLogTime = 0;
+    private static final long TOUCH_LOG_INTERVAL = 5000; // 5秒间隔
+    private static int touchEventCount = 0;
+    private static String lastTouchedRegion = "";
 
     // 布局快照
     private LayoutSnapshot currentLayout;
@@ -218,7 +224,20 @@ public class LayoutRenderer extends View {
                 // 查找触摸到的区域
                 currentTouchRegion = findTouchedRegion(normalizedX, normalizedY);
                 if (currentTouchRegion != null) {
-                    Log.d(TAG, "Touched region: " + currentTouchRegion.getId());
+                    // 更新统计信息
+                    lastTouchedRegion = currentTouchRegion.getId();
+                    touchEventCount++;
+                    
+                    // 按时间间隔打印日志
+                    long currentTime = System.currentTimeMillis();
+                    if (currentTime - lastTouchLogTime >= TOUCH_LOG_INTERVAL) {
+                        Log.d(TAG, "Touch events summary - Last touched region: " + lastTouchedRegion + 
+                              ", Total touch events in interval: " + touchEventCount);
+                        // 重置计数器
+                        touchEventCount = 0;
+                        lastTouchLogTime = currentTime;
+                    }
+                    
                     // 更新输入状态
                     updateInputState(normalizedX, normalizedY, true);
                     return true; // 只有在触摸到区域时才消费事件

@@ -185,10 +185,11 @@ public class WebSocketClient {
             
             // 尝试发送WebSocket消息
             if (isConnected && webSocket != null) {
+                Log.d(TAG, "Sending message to server: " + json);
                 webSocket.send(json);
             } else {
-                // 降低日志级别，避免日志刷屏
                 Log.d(TAG, "WebSocket not connected, skipping send but still broadcasting event");
+                Log.d(TAG, "Attempted to send message to server: " + json);
             }
             
             // 发送WebSocket发送帧成功广播，无论WebSocket是否连接

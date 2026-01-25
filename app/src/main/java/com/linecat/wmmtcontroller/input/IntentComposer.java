@@ -11,6 +11,11 @@ import com.linecat.wmmtcontroller.model.RawInput;
  */
 public class IntentComposer {
     private static final String TAG = "IntentComposer";
+    
+    // 用于控制日志打印频率的变量
+    private static long lastLogTime = 0;
+    private static final long LOG_INTERVAL = 5000; // 5秒间隔
+    private static int intentComposeCount = 0;
 
     /**
      * 合成操作意图
@@ -28,8 +33,16 @@ public class IntentComposer {
         applyDeadzone(processedInput);
         applySmoothing(processedInput);
         applyCurve(processedInput);
-
-        Log.d(TAG, "Intent composed from raw input");
+        
+        // 按时间间隔打印日志
+        intentComposeCount++;
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastLogTime >= LOG_INTERVAL) {
+            Log.d(TAG, "Intent composition summary - Total compositions in interval: " + intentComposeCount);
+            // 重置计数器
+            intentComposeCount = 0;
+            lastLogTime = currentTime;
+        }
 
         return processedInput;
     }

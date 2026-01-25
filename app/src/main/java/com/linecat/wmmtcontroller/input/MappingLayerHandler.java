@@ -21,6 +21,12 @@ import java.util.Map;
 public class MappingLayerHandler {
     private static final String TAG = "MappingLayerHandler";
     
+    // 用于控制日志打印频率的变量
+    private static long lastMappingLogTime = 0;
+    private static final long MAPPING_LOG_INTERVAL = 2000; // 2秒间隔
+    private static int mappingProcessedCount = 0;
+    private static int regionProcessedCount = 0;
+    
     /**
      * 处理 Mapping 层
      */
@@ -29,11 +35,21 @@ public class MappingLayerHandler {
             return;
         }
         
-        // 获取所有 Mapping 元素
+        // 获取所有包含映射信息的元素（包括传统MAPPING类型和简化格式中的UI类型）
         List<Region> mappingElements = new ArrayList<>();
         for (Region region : layout.getRegions()) {
+            // 传统MAPPING类型的区域
             if (region.getType() == Region.RegionType.MAPPING) {
                 mappingElements.add(region);
+            }
+            // 或者包含映射信息的UI类型区域（简化格式）
+            else if (region.getType() == Region.RegionType.BUTTON || 
+                     region.getType() == Region.RegionType.AXIS || 
+                     region.getType() == Region.RegionType.GYROSCOPE) {
+                // 检查是否有映射信息
+                if (region.getMappingButton() != null || region.getMappingKey() != null || region.getMappingAxis() != null) {
+                    mappingElements.add(region);
+                }
             }
         }
         
@@ -51,9 +67,21 @@ public class MappingLayerHandler {
             // 相同 zIndex 结果叠加
             for (Region region : highestZIndexRegions) {
                 processMappingElement(region, rawInput, inputState);
+                regionProcessedCount++; // 统计处理的区域数
             }
             
-            Log.d(TAG, "Processed " + highestZIndexRegions.size() + " mapping regions with zIndex " + highestZIndex);
+            mappingProcessedCount++; // 统计处理次数
+        }
+        
+        // 按时间间隔打印日志汇总
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastMappingLogTime >= MAPPING_LOG_INTERVAL) {
+            Log.d(TAG, "Mapping processing summary - Total processings in interval: " + mappingProcessedCount + 
+                  ", Total regions processed: " + regionProcessedCount);
+            // 重置计数器
+            mappingProcessedCount = 0;
+            regionProcessedCount = 0;
+            lastMappingLogTime = currentTime;
         }
     }
     
@@ -61,18 +89,36 @@ public class MappingLayerHandler {
      * 处理 Mapping 元素
      */
     private void processMappingElement(Region region, RawInput rawInput, InputState inputState) {
-        switch (region.getMappingType()) {
-            case KEYBOARD:
+        // 检查映射类型 - 首先检查区域是否是传统的MAPPING类型，否则基于映射属性判断
+        if (region.getType() == Region.RegionType.MAPPING) {
+            // 传统MAPPING类型的处理
+            switch (region.getMappingType()) {
+                case KEYBOARD:
+                    processKeyboardMapping(region, rawInput, inputState);
+                    break;
+                case GAMEPAD:
+                    processGamepadMapping(region, rawInput, inputState);
+                    break;
+                case CUSTOM:
+                    processCustomMapping(region, rawInput, inputState);
+                    break;
+                default:
+                    Log.w(TAG, "Unknown mapping type: " + region.getMappingType());
+            }
+        } else {
+            // 简化格式：基于映射属性判断
+            if (region.getMappingKey() != null) {
                 processKeyboardMapping(region, rawInput, inputState);
-                break;
-            case GAMEPAD:
+            } else if (region.getMappingButton() != null) {
                 processGamepadMapping(region, rawInput, inputState);
-                break;
-            case CUSTOM:
+            } else if (region.getMappingAxis() != null) {
+                // 轴映射也被视为游戏手柄映射的一种
+                processGamepadMapping(region, rawInput, inputState);
+            } else if (region.getCustomMappingTarget() != null) {
                 processCustomMapping(region, rawInput, inputState);
-                break;
-            default:
-                Log.w(TAG, "Unknown mapping type: " + region.getMappingType());
+            } else {
+                Log.w(TAG, "Region has no mapping information: " + region.getId());
+            }
         }
     }
     
@@ -82,7 +128,7 @@ public class MappingLayerHandler {
     private void processKeyboardMapping(Region region, RawInput rawInput, InputState inputState) {
         // 处理键盘映射
         String keyCode = region.getMappingKey();
-        // 从 RawInput 获取当前按钮状态
+        // 从 RawInput 获取当前按钮状态，使用区域ID作为键
         boolean isPressed = rawInput.getGamepad().getButtons().getOrDefault(region.getId(), false);
         
         // 更新输入状态
@@ -94,7 +140,11 @@ public class MappingLayerHandler {
             }
         }
         
-        Log.d(TAG, "Keyboard mapping processed: " + region.getId() + ", key: " + keyCode + ", pressed: " + isPressed);
+        // 添加日志频率控制
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastMappingLogTime >= MAPPING_LOG_INTERVAL) {
+            Log.d(TAG, "Keyboard mapping processed: " + region.getId() + ", key: " + keyCode + ", pressed: " + isPressed);
+        }
     }
     
     /**
@@ -105,7 +155,7 @@ public class MappingLayerHandler {
         String axis = region.getMappingAxis();
         String button = region.getMappingButton();
         
-        // 从 RawInput 获取当前按钮状态
+        // 从 RawInput 获取当前按钮状态，使用区域ID作为键
         boolean buttonPressed = rawInput.getGamepad().getButtons().getOrDefault(region.getId(), false);
         
         // 应用输出范围、曲线等
@@ -120,7 +170,11 @@ public class MappingLayerHandler {
             inputState.getKeyboard().remove(button); // 确保松开按钮时从键盘状态中移除
         }
         
-        Log.d(TAG, "Gamepad mapping processed: " + region.getId() + ", axis: " + axis + ", value: " + axisValue + ", button: " + button + ", pressed: " + buttonPressed);
+        // 添加日志频率控制
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastMappingLogTime >= MAPPING_LOG_INTERVAL) {
+            Log.d(TAG, "Gamepad mapping processed: " + region.getId() + ", axis: " + axis + ", value: " + axisValue + ", button: " + button + ", pressed: " + buttonPressed);
+        }
     }
     
     /**
@@ -129,14 +183,18 @@ public class MappingLayerHandler {
     private void processCustomMapping(Region region, RawInput rawInput, InputState inputState) {
         // 处理自定义映射
         String customTarget = region.getCustomMappingTarget();
-        // 从 RawInput 获取当前按钮状态作为示例值
+        // 从 RawInput 获取当前按钮状态作为示例值，使用区域ID作为键
         Object customValue = rawInput.getGamepad().getButtons().getOrDefault(region.getId(), false);
         
         // 更新输入状态 - 这里可以根据具体需求进行处理
         // 示例：将布尔值存储到自定义映射中
         // inputState.setCustomMapping(customTarget, customValue);
         
-        Log.d(TAG, "Custom mapping processed: " + region.getId() + ", target: " + customTarget + ", value: " + customValue);
+        // 添加日志频率控制
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastMappingLogTime >= MAPPING_LOG_INTERVAL) {
+            Log.d(TAG, "Custom mapping processed: " + region.getId() + ", target: " + customTarget + ", value: " + customValue);
+        }
     }
     
     /**

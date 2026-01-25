@@ -142,7 +142,7 @@ package com.linecat.wmmtcontroller.input;
  * 迁移示例:
  * <pre>
  * // 旧代码
- * LayoutEngine oldEngine = new LayoutEngine(outputController);
+ * LayoutEngine oldEngine = new LayoutEngine(inputStateController);
  * 
  * // 新代码
  * DeviceMapping deviceMapping = new DeviceMapping(...);

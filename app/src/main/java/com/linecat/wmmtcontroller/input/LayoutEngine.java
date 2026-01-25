@@ -14,7 +14,7 @@ import java.util.ArrayList;
  */
 public class LayoutEngine {
     private static final String TAG = "LayoutEngine";
-    
+
     // 用于控制日志打印频率的变量
     private static long lastLayoutLogTime = 0;
     private static final long LAYOUT_LOG_INTERVAL = 5000; // 5秒间隔
@@ -27,18 +27,18 @@ public class LayoutEngine {
 
     // 当前布局快照
     private LayoutSnapshot currentLayout;
-    
+
     // 输出控制器
-    private OutputController outputController;
-    
+    private InputStateController inputStateController;
+
     // 布局加载器
     private LayoutLoader layoutLoader;
-    
+
     // 默认布局JSON字符串
     private static final String DEFAULT_LAYOUT_JSON = "{\"layoutId\": \"basic_racing_layout\", \"version\": 1, \"description\": \"Basic racing layout with throttle, brake, gear shift and gyro steering\", \"elements\": [{\"id\": \"steering_wheel\", \"type\": \"gyro\", \"displayOnly\": true, \"position\": {\"x\": 0.5, \"y\": 0.15}, \"size\": {\"width\": 0.4, \"height\": 0.25}, \"mapping\": {\"axis\": \"LX\", \"source\": \"gyroscope\", \"sensitivity\": 1.0}}, {\"id\": \"gear_up\", \"type\": \"button\", \"position\": {\"x\": 0.05, \"y\": 0.55}, \"size\": {\"width\": 0.12, \"height\": 0.15}, \"mapping\": {\"button\": \"RB\"}}, {\"id\": \"gear_down\", \"type\": \"button\", \"position\": {\"x\": 0.05, \"y\": 0.72}, \"size\": {\"width\": 0.12, \"height\": 0.15}, \"mapping\": {\"button\": \"LB\"}}, {\"id\": \"brake\", \"type\": \"analog\", \"position\": {\"x\": 0.20, \"y\": 0.60}, \"size\": {\"width\": 0.18, \"height\": 0.30}, \"mapping\": {\"trigger\": \"LT\"}}, {\"id\": \"throttle\", \"type\": \"analog\", \"position\": {\"x\": 0.75, \"y\": 0.60}, \"size\": {\"width\": 0.20, \"height\": 0.30}, \"mapping\": {\"trigger\": \"RT\"}}]} ";
-    
-    public LayoutEngine(OutputController outputController) {
-        this.outputController = outputController;
+
+    public LayoutEngine(InputStateController inputStateController) {
+        this.inputStateController = inputStateController;
         this.uiLayerHandler = new UILayerHandler();
         this.operationLayerHandler = new OperationLayerHandler();
         this.mappingLayerHandler = new MappingLayerHandler();
@@ -94,7 +94,7 @@ public class LayoutEngine {
         Log.d(TAG, "Layout set: " + (layout != null ? layout.toString() : "null"));
 
         // 布局切换时清零输出
-        outputController.clearAllOutputs();
+        inputStateController.clearAllOutputs();
     }
 
     /**
@@ -137,7 +137,7 @@ public class LayoutEngine {
 
         // 3. Mapping 层处理：抽象语义 → 设备输出
         mappingLayerHandler.process(rawInput, currentLayout, inputState);
-        
+
         // 按时间间隔打印日志
         layoutExecutionCount++;
         long currentTime = System.currentTimeMillis();
@@ -149,7 +149,7 @@ public class LayoutEngine {
         }
 
         // 更新输出状态
-        outputController.updateOutput(inputState);
+        inputStateController.updateOutput(inputState);
 
         return inputState;
     }
@@ -162,7 +162,7 @@ public class LayoutEngine {
         uiLayerHandler.reset();
         operationLayerHandler.reset();
         mappingLayerHandler.reset();
-        outputController.clearAllOutputs();
+        inputStateController.clearAllOutputs();
         Log.d(TAG, "Layout engine reset");
     }
 

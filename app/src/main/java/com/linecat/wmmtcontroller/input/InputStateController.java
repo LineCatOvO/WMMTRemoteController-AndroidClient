@@ -8,12 +8,12 @@ import com.linecat.wmmtcontroller.model.InputState;
  * 输出控制器
  * 负责生成和管理控制结果状态
  */
-public class OutputController {
-    private static final String TAG = "OutputController";
+public class InputStateController {
+    private static final String TAG = "InputStateController";
     private InputState currentOutputState;
     private boolean isOutputEnabled = false;
 
-    public OutputController() {
+    public InputStateController() {
         this.currentOutputState = new InputState();
     }
 

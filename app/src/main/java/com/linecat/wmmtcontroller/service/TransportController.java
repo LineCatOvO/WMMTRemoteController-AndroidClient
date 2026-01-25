@@ -8,6 +8,12 @@ import android.os.Build;
 import android.util.Log;
 
 import com.linecat.wmmtcontroller.model.InputState;
+import com.linecat.wmmtcontroller.service.GamepadButtonEvent;
+import com.linecat.wmmtcontroller.service.KeyboardEvent;
+import com.linecat.wmmtcontroller.service.StateMessage;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
 /**
  * 传输控制器
@@ -112,7 +118,37 @@ public class TransportController {
      */
     public void sendInputState(InputState inputState) {
         if (webSocketClient.isConnected()) {
-            webSocketClient.sendInputState(inputState);
+            // 将旧的InputState转换为新的状态格式
+            List<KeyboardEvent> keyboardState = new ArrayList<>();
+            
+            // 转换键盘状态
+            Set<String> keys = inputState.getKeyboard();
+            for (String key : keys) {
+                keyboardState.add(new KeyboardEvent(key, KeyboardEvent.EVENT_TYPE_HELD));
+            }
+            
+            // 创建游戏手柄状态
+            InputState.JoystickState joystick = inputState.getJoystick();
+            StateMessage.GamepadState.Joystick leftJoystick = new StateMessage.GamepadState.Joystick(
+                    joystick.getX(), joystick.getY(), joystick.getDeadzone());
+            StateMessage.GamepadState.Joysticks joysticks = new StateMessage.GamepadState.Joysticks(
+                    leftJoystick, null);
+            
+            StateMessage.GamepadState.Triggers triggers = new StateMessage.GamepadState.Triggers(
+                    inputState.getTriggerL(), inputState.getTriggerR());
+            
+            List<GamepadButtonEvent> gamepadButtons = new ArrayList<>();
+            // 转换游戏手柄按键
+            Set<String> gamepadKeys = inputState.getGamepad();
+            for (String button : gamepadKeys) {
+                gamepadButtons.add(new GamepadButtonEvent(button, GamepadButtonEvent.EVENT_TYPE_HELD));
+            }
+            
+            StateMessage.GamepadState gamepadState = new StateMessage.GamepadState(
+                    gamepadButtons, joysticks, triggers);
+            
+            // 发送状态消息
+            webSocketClient.sendStateMessage(keyboardState, gamepadState, false);
             totalMessagesSent++;
             lastMessageTime = System.currentTimeMillis();
         }

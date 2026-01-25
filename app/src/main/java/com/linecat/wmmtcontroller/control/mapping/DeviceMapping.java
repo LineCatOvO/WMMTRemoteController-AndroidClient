@@ -146,35 +146,9 @@ public class DeviceMapping {
             String axisName = operationToAxisMap.get(operationType);
             float value = action.getProcessedValue();
             
-            // 根据轴名称设置相应的输入状态值
-            switch (axisName.toLowerCase()) {
-                case "steering":
-                case "x_axis":
-                case "lx":
-                    inputState.setSteering(value);
-                    break;
-                case "throttle":
-                case "y_axis":
-                case "ly":
-                    inputState.setThrottle(value);
-                    break;
-                case "brake":
-                case "rx":
-                    inputState.setBrake(value);
-                    break;
-                case "gyro_x":
-                    inputState.setGyroX(value);
-                    break;
-                case "gyro_y":
-                    inputState.setGyroY(value);
-                    break;
-                case "gyro_z":
-                    inputState.setGyroZ(value);
-                    break;
-                default:
-                    // 对于未知轴，可以考虑添加到自定义轴映射中
-                    break;
-            }
+            // 这里应该将模拟值映射到GameInputState，而不是InputState
+            // 由于InputState不再包含这些方法，暂时注释掉这些代码
+            // 后续将实现GameInputState的集成
         }
     }
     
@@ -283,22 +257,9 @@ public class DeviceMapping {
         float value = action.getProcessedValue();
         float secondaryValue = action.getProcessedSecondaryValue();
         
-        // 示例：根据手势类型设置相应的输入状态
-        switch (operationType.toLowerCase()) {
-            case "swipe_left_right":
-                inputState.setSteering(value);
-                break;
-            case "swipe_up_down":
-                inputState.setThrottle(value);
-                break;
-            case "two_finger_swipe":
-                inputState.setGyroX(value);
-                inputState.setGyroY(secondaryValue);
-                break;
-            default:
-                // 可能需要扩展以支持更多手势类型
-                break;
-        }
+        // 这里应该将手势值映射到GameInputState，而不是InputState
+        // 由于InputState不再包含这些方法，暂时注释掉这些代码
+        // 后续将实现GameInputState的集成
     }
     
     /**
@@ -311,13 +272,9 @@ public class DeviceMapping {
         // 复合动作可能需要同时更新多个输入状态属性
         float value = action.getProcessedValue();
         
-        // 示例：复合操作可能同时影响多个轴
-        if (operationType.contains("steering_and_throttle")) {
-            inputState.setSteering(value);
-            inputState.setThrottle(Math.abs(value) > 0.5f ? value : 0); // 只有当值较大时才影响油门
-        } else if (operationType.contains("combined_brake")) {
-            inputState.setBrake(Math.abs(value));
-        }
+        // 这里应该将复合值映射到GameInputState，而不是InputState
+        // 由于InputState不再包含这些方法，暂时注释掉这些代码
+        // 后续将实现GameInputState的集成
     }
     
     /**
@@ -358,9 +315,10 @@ public class DeviceMapping {
                 inputState.setShoulderR(false);
                 inputState.setTriggerL(0.0f);
                 inputState.setTriggerR(0.0f);
-                inputState.setSteering(0.0f);
-                inputState.setThrottle(0.0f);
-                inputState.setBrake(0.0f);
+                // 以下方法已从InputState中移除，后续将在GameInputState中实现
+                // inputState.setSteering(0.0f);
+                // inputState.setThrottle(0.0f);
+                // inputState.setBrake(0.0f);
                 break;
             case MOUSE:
                 // 清除鼠标相关状态
@@ -371,12 +329,13 @@ public class DeviceMapping {
                 break;
             case CUSTOM:
                 // 清除自定义状态
-                inputState.setSteering(0.0f);
-                inputState.setThrottle(0.0f);
-                inputState.setBrake(0.0f);
-                inputState.setGyroX(0.0f);
-                inputState.setGyroY(0.0f);
-                inputState.setGyroZ(0.0f);
+                // 以下方法已从InputState中移除，后续将在GameInputState中实现
+                // inputState.setSteering(0.0f);
+                // inputState.setThrottle(0.0f);
+                // inputState.setBrake(0.0f);
+                // inputState.setGyroX(0.0f);
+                // inputState.setGyroY(0.0f);
+                // inputState.setGyroZ(0.0f);
                 break;
         }
     }

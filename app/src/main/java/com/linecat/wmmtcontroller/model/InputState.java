@@ -21,30 +21,20 @@ public class InputState {
     private boolean shoulderR = false;
     private float triggerL = 0.0f;
     private float triggerR = 0.0f;
-    
-    // 轴状态
-    private float steering = 0.0f;
-    private float throttle = 0.0f;
-    private float brake = 0.0f;
-    
-    // 陀螺仪状态
-    private float gyroX = 0.0f;
-    private float gyroY = 0.0f;
-    private float gyroZ = 0.0f;
-    
+
     // 鼠标状态
     private float mouseX = 0.0f;
     private float mouseY = 0.0f;
     private boolean mouseLeft = false;
     private boolean mouseRight = false;
     private boolean mouseMiddle = false;
-    
+
     // 键盘按键状态
     private Set<String> keys = new HashSet<>();
-    
+
     // 框架ID
     private long frameId = 0;
-    
+
     // 运行时状态
     private String runtimeStatus = "";
 
@@ -55,51 +45,51 @@ public class InputState {
         private boolean left = false;
         private boolean right = false;
         private boolean middle = false;
-        
+
         public float getX() { return x; }
         public void setX(float x) { this.x = x; }
-        
+
         public float getY() { return y; }
         public void setY(float y) { this.y = y; }
-        
+
         public boolean getLeft() { return left; }
         public boolean isLeft() { return left; }  // 添加 isLeft 方法
         public void setLeft(boolean left) { this.left = left; }
-        
+
         public boolean getRight() { return right; }
         public boolean isRight() { return right; }  // 添加 isRight 方法
         public void setRight(boolean right) { this.right = right; }
-        
+
         public boolean getMiddle() { return middle; }
         public boolean isMiddle() { return middle; }  // 添加 isMiddle 方法
         public void setMiddle(boolean middle) { this.middle = middle; }
     }
-    
+
     public static class JoystickState {
         private float x = 0.0f;
         private float y = 0.0f;
         private float deadzone = 0.1f;
         private float smoothing = 0.0f;
-        
+
         public JoystickState(float x, float y) {
             this.x = x;
             this.y = y;
         }
-        
+
         public float getX() { return x; }
         public void setX(float x) { this.x = x; }
-        
+
         public float getY() { return y; }
         public void setY(float y) { this.y = y; }
-        
+
         // 添加缺失的方法
         public float getDeadzone() { return deadzone; }
         public void setDeadzone(float deadzone) { this.deadzone = deadzone; }
-        
+
         public float getSmoothing() { return smoothing; }
         public void setSmoothing(float smoothing) { this.smoothing = smoothing; }
     }
-    
+
     private MouseState mouse = new MouseState();
     private Set<String> keyboard = new HashSet<>();
     private Set<String> gamepad = new HashSet<>(); // 添加游戏手柄字段
@@ -109,7 +99,7 @@ public class InputState {
     public InputState() {
         // 初始化键盘按键状态
     }
-    
+
     // 复制构造函数
     public InputState(InputState other) {
         if (other != null) {
@@ -121,12 +111,6 @@ public class InputState {
             this.shoulderR = other.shoulderR;
             this.triggerL = other.triggerL;
             this.triggerR = other.triggerR;
-            this.steering = other.steering;
-            this.throttle = other.throttle;
-            this.brake = other.brake;
-            this.gyroX = other.gyroX;
-            this.gyroY = other.gyroY;
-            this.gyroZ = other.gyroZ;
             this.mouseX = other.mouseX;
             this.mouseY = other.mouseY;
             this.mouseLeft = other.mouseLeft;
@@ -134,11 +118,11 @@ public class InputState {
             this.mouseMiddle = other.mouseMiddle;
             this.frameId = other.frameId;
             this.runtimeStatus = other.runtimeStatus != null ? other.runtimeStatus : "";
-            
+
             if (other.keys != null) {
                 this.keys.addAll(other.keys);
             }
-            
+
             if (other.mouse != null) {
                 this.mouse = new MouseState();
                 this.mouse.setX(other.mouse.getX());
@@ -147,13 +131,13 @@ public class InputState {
                 this.mouse.setRight(other.mouse.getRight());
                 this.mouse.setMiddle(other.mouse.getMiddle());
             }
-            
+
             if (other.joystick != null) {
                 this.joystick = new JoystickState(other.joystick.getX(), other.joystick.getY());
                 this.joystick.setDeadzone(other.joystick.getDeadzone());
                 this.joystick.setSmoothing(other.joystick.getSmoothing());
             }
-            
+
             if (other.joysticks != null) {
                 for (JoystickState js : other.joysticks) {
                     this.joysticks.add(new JoystickState(js.getX(), js.getY()));
@@ -197,26 +181,6 @@ public class InputState {
     public float getTriggerR() { return triggerR; }
     public void setTriggerR(float triggerR) { this.triggerR = triggerR; }
 
-    // 轴相关 getter/setter
-    public float getSteering() { return steering; }
-    public void setSteering(float steering) { this.steering = steering; }
-
-    public float getThrottle() { return throttle; }
-    public void setThrottle(float throttle) { this.throttle = throttle; }
-
-    public float getBrake() { return brake; }
-    public void setBrake(float brake) { this.brake = brake; }
-
-    // 陀螺仪相关 getter/setter
-    public float getGyroX() { return gyroX; }
-    public void setGyroX(float gyroX) { this.gyroX = gyroX; }
-
-    public float getGyroY() { return gyroY; }
-    public void setGyroY(float gyroY) { this.gyroY = gyroY; }
-
-    public float getGyroZ() { return gyroZ; }
-    public void setGyroZ(float gyroZ) { this.gyroZ = gyroZ; }
-
     // 鼠标相关 getter/setter
     public float getMouseX() { return mouseX; }
     public void setMouseX(float mouseX) { this.mouseX = mouseX; }
@@ -240,7 +204,7 @@ public class InputState {
             this.keys = keys;
         }
     }
-    
+
     public void clearAllKeys() {
         keys.clear();
     }
@@ -266,11 +230,11 @@ public class InputState {
     public boolean isKeyPressed(String keycode) {
         return keyboard.contains(keycode);
     }
-        
+
     public void pressKey(String keycode) {
         keyboard.add(keycode);
     }
-        
+
     public void releaseKey(String keycode) {
         keyboard.remove(keycode);
     }
@@ -282,37 +246,37 @@ public class InputState {
     public void addJoystick(JoystickState joystick) {
         joysticks.add(joystick);
     }
-    
+
     // 添加缺失的 joystick 相关方法
     public JoystickState getJoystick() {
         return joystick;
     }
-    
+
     public void setJoystick(JoystickState joystick) {
         this.joystick = joystick;
     }
-    
+
     // 游戏手柄相关 getter/setter
     public Set<String> getGamepad() { return gamepad; }
-    
+
     public void setGamepad(Set<String> gamepad) {
         if (gamepad != null) {
             this.gamepad = gamepad;
         }
     }
-    
+
     public void addGamepadButton(String button) {
         gamepad.add(button);
     }
-    
+
     public void removeGamepadButton(String button) {
         gamepad.remove(button);
     }
-    
+
     public boolean isGamepadButtonPressed(String button) {
         return gamepad.contains(button);
     }
-    
+
     public void clearGamepad() {
         gamepad.clear();
     }

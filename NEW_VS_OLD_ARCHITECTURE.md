@@ -105,7 +105,7 @@
 
 ```java
 // 旧架构
-LayoutEngine layoutEngine = new LayoutEngine(outputController);
+LayoutEngine layoutEngine = new LayoutEngine(inputStateController);
 layoutEngine.setContext(context);
 layoutEngine.init();
 
@@ -126,7 +126,7 @@ InputState inputState = enhancedLayoutEngine.executeLayout(rawInput, frameId);
 
 ```java
 // 迁移期间（通过适配器）
-LayoutEngine legacyEngine = new LayoutEngine(outputController);
+LayoutEngine legacyEngine = new LayoutEngine(inputStateController);
 EnhancedLayoutEngine newEngine = new EnhancedLayoutEngine(deviceMapping);
 LayoutEngineAdapter adapter = new LayoutEngineAdapter(legacyEngine, newEngine);
 

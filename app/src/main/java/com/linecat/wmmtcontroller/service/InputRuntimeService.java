@@ -5,9 +5,7 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
-import android.content.Context;
 import android.content.Intent;
-import android.os.Build;
 import android.os.IBinder;
 import android.util.Log;
 
@@ -15,36 +13,24 @@ import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
 import com.linecat.wmmtcontroller.MainActivity;
-import com.linecat.wmmtcontroller.floatwindow.OverlayController;
-import com.linecat.wmmtcontroller.input.EventNormalizer;
-import com.linecat.wmmtcontroller.input.InputInterpreter;
 import com.linecat.wmmtcontroller.input.InputScriptEngine;
-import com.linecat.wmmtcontroller.input.InteractionCapture;
-import com.linecat.wmmtcontroller.input.IntentComposer;
-import com.linecat.wmmtcontroller.input.DeviceProjector;
-
 import com.linecat.wmmtcontroller.input.JsInputScriptEngine;
-import com.linecat.wmmtcontroller.input.LayoutEngine;
-import com.linecat.wmmtcontroller.input.LayoutSnapshot;
-import com.linecat.wmmtcontroller.input.NormalizedEvent;
-import com.linecat.wmmtcontroller.input.OutputController;
 import com.linecat.wmmtcontroller.input.ProfileManager;
-import com.linecat.wmmtcontroller.core.layout.EnhancedLayoutEngine;
-import com.linecat.wmmtcontroller.control.mapping.DeviceMapping;
-import com.linecat.wmmtcontroller.util.LayoutEngineAdapter;
-import com.linecat.wmmtcontroller.input.RegionResolver;
 import com.linecat.wmmtcontroller.input.SafetyController;
 import com.linecat.wmmtcontroller.input.ScriptProfile;
-import com.linecat.wmmtcontroller.model.InputState;
-import com.linecat.wmmtcontroller.model.RawInput;
+import com.linecat.wmmtcontroller.layer.ConversionLayer;
+import com.linecat.wmmtcontroller.layer.InputAbstractionLayer;
+import com.linecat.wmmtcontroller.layer.MappingLayer;
+import com.linecat.wmmtcontroller.layer.NetworkLayer;
+import com.linecat.wmmtcontroller.layer.PlatformAdaptationLayer;
+import com.linecat.wmmtcontroller.layer.UIInputLayer;
 import com.linecat.wmmtcontroller.monitor.SystemMonitor;
 import com.linecat.wmmtcontroller.monitor.SystemMonitor.ControlState;
 import com.linecat.wmmtcontroller.monitor.SystemMonitor.SafetyState;
-import java.util.ArrayList;
 
 /**
  * 输入运行时服务
- * 负责采集RawInput、驱动frame tick、调用ScriptEngine、发送WebSocket
+ * 负责管理五个层的生命周期，协调各层之间的交互
  */
 public class InputRuntimeService extends Service {
     private static final String TAG = "InputRuntimeService";
@@ -53,35 +39,20 @@ public class InputRuntimeService extends Service {
 
     // 运行时组件
     private RuntimeConfig runtimeConfig;
-    private ProfileManager profileManager;
     private InputScriptEngine scriptEngine;
-    private InteractionCapture inputController;
-    private LayoutEngine layoutEngine;
-    private EnhancedLayoutEngine enhancedLayoutEngine;  // 新版布局引擎
-    private LayoutEngineAdapter layoutEngineAdapter;  // 布局引擎适配器
-    private OutputController outputController;
+    private ProfileManager profileManager;
     private SafetyController safetyController;
-    private TransportController transportController;
-    private OverlayController overlayController;
-    // 输入服务层组件
-    private InputInterpreter inputInterpreter;
-    private EventNormalizer eventNormalizer;
-    private RegionResolver regionResolver;
-    // UI更新Handler
     private android.os.Handler uiHandler;
+
+    // 五个层
+    private PlatformAdaptationLayer platformAdaptationLayer;
+    private UIInputLayer uiInputLayer;
+    private ConversionLayer conversionLayer;
+    private MappingLayer mappingLayer;
+    private NetworkLayer networkLayer;
 
     // 运行状态
     private boolean isRunning = false;
-    // Frame ID 计数器，用于生成单调递增的帧ID
-    private long frameIdCounter = 1;
-    // 输入处理标志，防止并发处理
-    private boolean isProcessingInput = false;
-
-
-    // 广播接收器，用于处理连接控制事件
-    private android.content.BroadcastReceiver connectControlReceiver;
-    // 广播接收器，用于处理WebSocket连接状态事件
-    private android.content.BroadcastReceiver wsStatusReceiver;
 
     @Override
     public void onCreate() {
@@ -92,11 +63,7 @@ public class InputRuntimeService extends Service {
         createNotificationChannel();
 
         // 初始化UI Handler
-        uiHandler = new android.os.Handler(android.os.Looper.getMainLooper());
-
-        // 初始化广播接收器
-        initConnectControlReceiver();
-        initWebSocketStatusReceiver();
+        uiHandler = new android.os.Handler(getMainLooper());
 
         // 初始化组件
         initializeComponents();
@@ -117,9 +84,9 @@ public class InputRuntimeService extends Service {
         if (!isRunning) {
             startMainLoop();
 
-            // 显示悬浮球
-            overlayController.showOverlay();
-            overlayController.updateStatus("服务运行中");
+            // 显示悬浮球并更新状态
+            uiInputLayer.start();
+            uiInputLayer.updateFloatWindowStatus("服务运行中");
 
             // 更新系统监控状态
             SystemMonitor.getInstance().setControlState(ControlState.RUNNING);
@@ -146,27 +113,8 @@ public class InputRuntimeService extends Service {
         // 停止主循环
         stopMainLoop();
 
-        // 隐藏悬浮球
-        overlayController.hideOverlay();
-
-        // 注销广播接收器
-        if (connectControlReceiver != null) {
-            try {
-                unregisterReceiver(connectControlReceiver);
-                connectControlReceiver = null;
-            } catch (Exception e) {
-                Log.e(TAG, "Error unregistering connect control receiver: " + e.getMessage());
-            }
-        }
-        
-        if (wsStatusReceiver != null) {
-            try {
-                unregisterReceiver(wsStatusReceiver);
-                wsStatusReceiver = null;
-            } catch (Exception e) {
-                Log.e(TAG, "Error unregistering WebSocket status receiver: " + e.getMessage());
-            }
-        }
+        // 停止所有层
+        stopAllLayers();
 
         // 清理资源
         cleanupComponents();
@@ -214,162 +162,22 @@ public class InputRuntimeService extends Service {
     }
 
     /**
-     * 初始化连接控制广播接收器
-     */
-    private void initConnectControlReceiver() {
-        connectControlReceiver = new android.content.BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                String action = intent.getAction();
-                Log.d(TAG, "[连接广播] 接收到广播，action: " + action);
-                if (action != null) {
-                    switch (action) {
-                        case "com.linecat.wmmtcontroller.ACTION_START_CONNECT":
-                            Log.d(TAG, "[连接广播] 收到开始连接广播，准备调用transportController.connect()");
-                            if (transportController == null) {
-                                Log.e(TAG, "[连接广播] transportController为null，无法调用connect()方法");
-                                break;
-                            }
-                            Log.d(TAG, "[连接广播] transportController不为null，开始调用connect()方法");
-                            // 开始连接WebSocket
-                            transportController.connect();
-                            Log.d(TAG, "[连接广播] transportController.connect()方法调用完成");
-                            break;
-                        case "com.linecat.wmmtcontroller.ACTION_STOP_CONNECT":
-                            Log.d(TAG, "[连接广播] 收到停止连接广播，准备调用transportController.disconnect()");
-                            if (transportController == null) {
-                                Log.e(TAG, "[连接广播] transportController为null，无法调用disconnect()方法");
-                                break;
-                            }
-                            // 断开WebSocket连接
-                            transportController.disconnect();
-                            Log.d(TAG, "[连接广播] transportController.disconnect()方法调用完成");
-                            break;
-                        default:
-                            Log.w(TAG, "[连接广播] 收到未知广播action: " + action);
-                            break;
-                    }
-                } else {
-                    Log.w(TAG, "[连接广播] 接收到的广播action为null");
-                }
-            }
-        };
-
-        // 注册广播接收器
-        android.content.IntentFilter filter = new android.content.IntentFilter();
-        filter.addAction("com.linecat.wmmtcontroller.ACTION_START_CONNECT");
-        filter.addAction("com.linecat.wmmtcontroller.ACTION_STOP_CONNECT");
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(connectControlReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
-        } else {
-            registerReceiver(connectControlReceiver, filter);
-        }
-    }
-    
-    /**
-     * 初始化WebSocket状态广播接收器
-     */
-    private void initWebSocketStatusReceiver() {
-        wsStatusReceiver = new android.content.BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                String action = intent.getAction();
-                if (action != null) {
-                    switch (action) {
-                        case RuntimeEvents.ACTION_WS_DISCONNECTED:
-                            Log.d(TAG, "Received WebSocket disconnected broadcast");
-                            // 通信断开时触发安全清零
-                            safetyController.triggerSafetyClear();
-                            
-                            // 检查是否是因为连接失败导致的断开
-                            // 如果当前尝试连接但未成功，显示连接错误
-                            if (transportController != null && !transportController.isConnected()) {
-                                showConnectionError();
-                            }
-                            break;
-                    }
-                }
-            }
-        };
-        
-        // 注册广播接收器
-        android.content.IntentFilter filter = new android.content.IntentFilter();
-        filter.addAction(RuntimeEvents.ACTION_WS_DISCONNECTED);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(wsStatusReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
-        } else {
-            registerReceiver(wsStatusReceiver, filter);
-        }
-    }
-
-    /**
      * 初始化组件
      */
     private void initializeComponents() {
+        Log.d(TAG, "Initializing components");
+
         // 创建运行时配置
         runtimeConfig = new RuntimeConfig(this);
-
-        // 创建输出控制器
-        outputController = new OutputController();
-        
-        // 创建布局引擎
-        layoutEngine = new LayoutEngine(outputController);
-        layoutEngine.setContext(this);
-        layoutEngine.init();
-        
-        // 创建新版布局引擎
-        DeviceMapping defaultMapping = new DeviceMapping("default_mapping", "默认映射", DeviceMapping.MappingType.KEYBOARD);
-        enhancedLayoutEngine = new EnhancedLayoutEngine(defaultMapping);
-        
-        // 创建布局引擎适配器，默认使用旧引擎以保证兼容性
-        layoutEngineAdapter = new LayoutEngineAdapter(layoutEngine, enhancedLayoutEngine);
 
         // 创建脚本引擎
         scriptEngine = new JsInputScriptEngine(this);
 
         // 创建配置文件管理器
         profileManager = new ProfileManager(this, scriptEngine);
-        // 设置布局引擎
-        profileManager.setLayoutEngine(layoutEngine);
 
-        // 创建传输控制器
-        transportController = new TransportController(this, runtimeConfig);
-        transportController.init();
-        
-        // 创建意图合成器
-        IntentComposer intentComposer = new IntentComposer();
-        
-        // 创建设备投影器
-        DeviceProjector deviceProjector = new DeviceProjector(transportController, layoutEngine);
-        
-        // 创建交互捕获器
-        inputController = new InteractionCapture(this, intentComposer, deviceProjector);
-        // 将当前服务注册为输入事件监听器
-        // 注意：现在InteractionCapture不再实现InputEventListener接口，所以我们不再需要设置监听器
-
-        // 创建悬浮球控制器
-        overlayController = new OverlayController(this);
-        
-        // 将布局引擎的当前布局传递给渲染器
-        LayoutSnapshot currentLayout = layoutEngine.getCurrentLayout();
-        if (currentLayout != null) {
-            overlayController.setCurrentLayout(currentLayout);
-        }
-        
-        // 将输入控制器设置到布局渲染器
-        overlayController.setInputController(inputController);
-        
-        // 将transportController设置到overlayController
-        overlayController.setTransportController(transportController);
-        
-        // 创建安全控制器
-        safetyController = new SafetyController(outputController);
-        
-        // 创建输入服务层组件
-        inputInterpreter = new InputInterpreter();
-        eventNormalizer = new EventNormalizer();
-        regionResolver = new RegionResolver(this);
-
+        // 初始化各层
+        initializeLayers();
 
         // 初始化各组件
         scriptEngine.init();
@@ -391,74 +199,168 @@ public class InputRuntimeService extends Service {
         Intent engineReadyIntent = new Intent(RuntimeEvents.ACTION_SCRIPT_ENGINE_READY);
         sendBroadcast(engineReadyIntent);
 
-        // 初始化输入控制器
-        inputController.start();
-
         Log.d(TAG, "All components initialized");
+    }
+
+    /**
+     * 初始化各层
+     */
+    private void initializeLayers() {
+        Log.d(TAG, "Initializing layers");
+
+        // 创建网络层
+        networkLayer = new NetworkLayer(this);
+        networkLayer.setRuntimeConfig(runtimeConfig);
+        networkLayer.init();
+
+        // 创建映射层
+        mappingLayer = new MappingLayer(this);
+        mappingLayer.setTransportController(networkLayer.getTransportController());
+        mappingLayer.init();
+
+        // 创建转换层
+        conversionLayer = new ConversionLayer(this);
+        conversionLayer.init();
+
+        // 创建UI输入层
+        uiInputLayer = new UIInputLayer(this);
+        uiInputLayer.setTransportController(networkLayer.getTransportController());
+        uiInputLayer.init();
+
+        // 创建平台适配层和输入抽象层
+        InputAbstractionLayer inputAbstractionLayer = new InputAbstractionLayer(new InputAbstractionLayer.OutputSink() {
+            @Override
+            public void onPointerFrame(InputAbstractionLayer.PointerFrame frame) {
+                // 处理指针帧（根据需要实现）
+            }
+            
+            @Override
+            public void onGyroFrame(InputAbstractionLayer.GyroFrame frame) {
+                // 处理陀螺仪帧（根据需要实现）
+            }
+        });
+        
+        platformAdaptationLayer = new PlatformAdaptationLayer(this, inputAbstractionLayer);
+        
+        // 注意：不再需要设置依赖项、初始化或获取交互捕获器
+        // 新的平台适配层设计不再使用这些方法
+
+        Log.d(TAG, "All layers initialized");
+    }
+
+    /**
+     * 启动所有层
+     */
+    private void startAllLayers() {
+        Log.d(TAG, "Starting all layers");
+
+        // 启动网络层
+        networkLayer.start();
+
+        // 启动映射层
+        mappingLayer.start();
+
+        // 启动转换层
+        conversionLayer.start();
+
+        // 启动平台适配层的 overlay
+        platformAdaptationLayer.startOverlay();
+
+        Log.d(TAG, "All layers started");
+    }
+
+    /**
+     * 停止所有层
+     */
+    private void stopAllLayers() {
+        Log.d(TAG, "Stopping all layers");
+
+        // 停止平台适配层的 overlay
+        if (platformAdaptationLayer != null) {
+            platformAdaptationLayer.stopOverlay();
+        }
+
+        // 停止转换层
+        if (conversionLayer != null) {
+            conversionLayer.stop();
+        }
+
+        // 停止映射层
+        if (mappingLayer != null) {
+            mappingLayer.stop();
+        }
+
+        // 停止网络层
+        if (networkLayer != null) {
+            networkLayer.stop();
+        }
+
+        Log.d(TAG, "All layers stopped");
+    }
+
+    /**
+     * 清理所有层
+     */
+    private void destroyAllLayers() {
+        Log.d(TAG, "Destroying all layers");
+
+        // 平台适配层不需要显式销毁，资源管理通过 stopOverlay() 处理
+        platformAdaptationLayer = null;
+
+        // 销毁UI输入层
+        if (uiInputLayer != null) {
+            uiInputLayer.destroy();
+            uiInputLayer = null;
+        }
+
+        // 销毁转换层
+        if (conversionLayer != null) {
+            conversionLayer.destroy();
+            conversionLayer = null;
+        }
+
+        // 销毁映射层
+        if (mappingLayer != null) {
+            mappingLayer.destroy();
+            mappingLayer = null;
+        }
+
+        // 销毁网络层
+        if (networkLayer != null) {
+            networkLayer.destroy();
+            networkLayer = null;
+        }
+
+        Log.d(TAG, "All layers destroyed");
     }
 
     /**
      * 清理组件
      */
     private void cleanupComponents() {
-        // 停止输入控制器
-        if (inputController != null) {
-            inputController.stop();
-        }
-        
+        Log.d(TAG, "Cleaning up components");
+
+        // 销毁所有层
+        destroyAllLayers();
+
         // 清理安全控制器
         if (safetyController != null) {
             safetyController.destroy();
+            safetyController = null;
         }
-        
-        // 清理布局引擎
-        if (layoutEngine != null) {
-            layoutEngine.reset();
-        }
-        
-        // 清理新版布局引擎
-        if (enhancedLayoutEngine != null) {
-            enhancedLayoutEngine.reset();
-        }
-        
-        // 清理输出控制器
-        if (outputController != null) {
-            outputController.clearAllOutputs();
-        }
-        
-        // 清理悬浮球控制器
-        if (overlayController != null) {
-            overlayController.destroy();
-        }
-        
-        // 清理传输控制器
-        if (transportController != null) {
-            transportController.cleanup();
-        }
-        
+
         // 清理脚本引擎
         if (scriptEngine != null) {
             scriptEngine.shutdown();
+            scriptEngine = null;
         }
-        
+
         // 清理配置文件管理器
         if (profileManager != null) {
             profileManager.unloadCurrentProfile();
+            profileManager = null;
         }
-        
-        // 清理输入服务层组件
-        if (inputInterpreter != null) {
-            inputInterpreter.reset();
-        }
-        
-        if (eventNormalizer != null) {
-            eventNormalizer.reset();
-        }
-        
-        if (regionResolver != null) {
-            regionResolver.reset();
-        }
-        
+
         Log.d(TAG, "All components cleaned up");
     }
 
@@ -466,34 +368,11 @@ public class InputRuntimeService extends Service {
      * 启动事件驱动机制
      */
     private void startMainLoop() {
-
         // 设置运行标志为true
         isRunning = true;
-    }
 
-
-
-    /**
-     * 更新浮窗状态
-     */
-    private void updateFloatWindowStatus(long frameId, boolean isRunningNormally) {
-        // 使用Handler更新UI
-        uiHandler.post(() -> {
-            String statusText;
-            // 区分脚本执行错误和正常的未连接状态
-            if (isRunningNormally) {
-                // 脚本执行正常
-                if (transportController.isConnected()) {
-                    statusText = "运行中";
-                } else {
-                    statusText = "未连接";
-                }
-            } else {
-                // 脚本执行错误
-                statusText = "脚本错误";
-            }
-            overlayController.updateStatus(statusText);
-        });
+        // 启动所有层
+        startAllLayers();
     }
 
     /**
@@ -501,7 +380,6 @@ public class InputRuntimeService extends Service {
      */
     private void stopMainLoop() {
         isRunning = false;
-
     }
 
     /**
@@ -538,36 +416,23 @@ public class InputRuntimeService extends Service {
     public void unloadCurrentProfile() {
         profileManager.unloadCurrentProfile();
     }
-    
+
     /**
      * 切换到新版布局引擎
      */
     public void switchToNewEngine() {
-        if (layoutEngineAdapter != null) {
-            layoutEngineAdapter.setUseNewEngine(true);
-            Log.d(TAG, "Switched to new layout engine");
+        if (mappingLayer != null) {
+            mappingLayer.switchToNewEngine();
         }
     }
-    
+
     /**
      * 切换回旧版布局引擎
      */
     public void switchToLegacyEngine() {
-        if (layoutEngineAdapter != null) {
-            layoutEngineAdapter.setUseNewEngine(false);
-            Log.d(TAG, "Switched back to legacy layout engine");
+        if (mappingLayer != null) {
+            mappingLayer.switchToLegacyEngine();
         }
     }
-    
-    /**
-     * 显示连接错误提示
-     */
-    private void showConnectionError() {
-        // 使用Handler在UI线程显示错误提示
-        uiHandler.post(() -> {
-            overlayController.showConnectionError();
-        });
-    }
-
 
 }

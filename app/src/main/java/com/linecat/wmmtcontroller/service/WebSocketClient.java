@@ -9,10 +9,18 @@ import android.widget.Toast;
 import com.google.gson.Gson;
 import com.linecat.wmmtcontroller.model.FormattedInputMessage;
 import com.linecat.wmmtcontroller.model.InputState;
+import com.linecat.wmmtcontroller.service.EventDelta;
+import com.linecat.wmmtcontroller.service.EventMessage;
+import com.linecat.wmmtcontroller.service.KeyboardEvent;
+import com.linecat.wmmtcontroller.service.StateMessage;
 
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.List;
+import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.Collections;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -44,6 +52,23 @@ public class WebSocketClient {
     private long connectStartTime;
     // 连接结果回调
     private boolean connectionResultReported = false;
+    
+    // 状态ID计数器
+    private long stateId = 0;
+    // 事件ID计数器
+    private long eventId = 0;
+    // 最后确认的状态ID
+    private long lastAckedStateId = 0;
+    
+    // 事件缓存，保存最近100个发送的事件
+    private final Map<Long, String> eventCache = Collections.synchronizedMap(
+        new LinkedHashMap<Long, String>(100, 0.75f, false) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<Long, String> eldest) {
+                return size() > 100;
+            }
+        }
+    );
     
     /**
      * WebSocket客户端构造函数
@@ -150,7 +175,48 @@ public class WebSocketClient {
                 
                 @Override
                 public void onMessage(WebSocket webSocket, String text) {
-                    Log.d(TAG, "[消息接收] WebSocket消息: " + text);
+                    
+                    try {
+                        // 解析JSON消息
+                        org.json.JSONObject jsonObj = new org.json.JSONObject(text);
+                        String type = jsonObj.getString("type");
+                        
+                        // 处理状态确认消息
+                        if ("stateAck".equals(type)) {
+                            long ackedStateId = jsonObj.getLong("ackStateId");
+                            lastAckedStateId = Math.max(lastAckedStateId, ackedStateId);
+                            Log.d(TAG, "[消息接收] 收到状态确认: ackStateId=" + ackedStateId + ", 更新lastAckedStateId=" + lastAckedStateId);
+                        }
+                        
+                        // 处理事件确认消息
+                        else if ("eventAck".equals(type)) {
+                            long ackedEventId = jsonObj.getLong("eventId");
+                            Log.d(TAG, "[消息接收] 收到事件确认: eventId=" + ackedEventId);
+                        }
+                        
+                        // 处理错误消息
+                        else if ("error".equals(type)) {
+                            long errorId = jsonObj.getLong("errorId");
+                            String errorMsg = jsonObj.getString("message");
+                            
+                            // 获取对应的原始发送数据
+                            String originalData = eventCache.get(errorId);
+                            
+                            // 构建完整的错误信息
+                            String fullErrorMsg = "服务端返回错误: " + errorMsg + ", 错误ID: " + errorId + ", 原始发送数据: " + originalData;
+                            
+                            // 抛出错误并打印栈溢出
+                            Exception error = new RuntimeException(fullErrorMsg);
+                            Log.e(TAG, fullErrorMsg, error);
+                            
+                            // 发送WebSocket错误广播
+                            Intent intent = new Intent(RuntimeEvents.ACTION_RUNTIME_ERROR);
+                            intent.putExtra(RuntimeEvents.EXTRA_ERROR_TYPE, RuntimeEvents.ERROR_TYPE_WEBSOCKET_ERROR);
+                            context.sendBroadcast(intent);
+                        }
+                    } catch (org.json.JSONException e) {
+                        Log.e(TAG, "[消息接收] 解析WebSocket消息失败: " + e.getMessage() + ", 原始消息: " + text);
+                    }
                 }
                 
                 @Override
@@ -294,6 +360,93 @@ public class WebSocketClient {
             context.sendBroadcast(intent);
         } catch (Exception e) {
             Log.e(TAG, "Error sending input state: " + e.getMessage(), e);
+            
+            // 发送WebSocket发送帧失败广播
+            Intent intent = new Intent(RuntimeEvents.ACTION_RUNTIME_ERROR);
+            intent.putExtra(RuntimeEvents.EXTRA_ERROR_TYPE, RuntimeEvents.ERROR_TYPE_WEBSOCKET_ERROR);
+            context.sendBroadcast(intent);
+        }
+    }
+    
+    /**
+     * 发送状态消息到服务器
+     * @param keyboardState 键盘状态
+     * @param gamepadState 游戏手柄状态
+     * @param zeroOutput 是否为零输出
+     */
+    public void sendStateMessage(List<KeyboardEvent> keyboardState, StateMessage.GamepadState gamepadState, boolean zeroOutput) {
+        try {
+            // 生成新的状态ID
+            long currentStateId = ++stateId;
+            
+            // 创建状态消息
+            StateMessage stateMessage = new StateMessage(currentStateId, keyboardState, gamepadState, zeroOutput);
+            
+            // 将消息转换为JSON
+            String json = gson.toJson(stateMessage);
+            
+            // 尝试发送WebSocket消息
+            if (isConnected && webSocket != null) {
+                Log.d(TAG, "Sending state message: stateId=" + currentStateId + ", keyboardStateSize=" + keyboardState.size());
+                webSocket.send(json);
+            } else {
+                Log.d(TAG, "WebSocket not connected, skipping state send");
+                Log.e(TAG, "Attempted to send state message: " + json);
+            }
+            
+            // 发送WebSocket发送帧成功广播，无论WebSocket是否连接
+            Intent intent = new Intent(RuntimeEvents.ACTION_WS_SENT_FRAME);
+            intent.putExtra(RuntimeEvents.EXTRA_FRAME_ID, currentStateId);
+            intent.putExtra(RuntimeEvents.EXTRA_WS_MESSAGE, json);
+            context.sendBroadcast(intent);
+        } catch (Exception e) {
+            Log.e(TAG, "Error sending state message: " + e.getMessage(), e);
+            
+            // 发送WebSocket发送帧失败广播
+            Intent intent = new Intent(RuntimeEvents.ACTION_RUNTIME_ERROR);
+            intent.putExtra(RuntimeEvents.EXTRA_ERROR_TYPE, RuntimeEvents.ERROR_TYPE_WEBSOCKET_ERROR);
+            context.sendBroadcast(intent);
+        }
+    }
+    
+    /**
+     * 发送事件消息到服务器
+     * @param delta 事件增量
+     * @param zeroOutput 是否为零输出
+     */
+    public void sendEventMessage(EventDelta delta, boolean zeroOutput) {
+        try {
+            // 生成新的事件ID
+            long currentEventId = ++eventId;
+            
+            // 使用最后确认的状态ID作为基础状态ID
+            long currentBaseStateId = lastAckedStateId;
+            
+            // 创建事件消息
+            EventMessage eventMessage = new EventMessage(currentEventId, currentBaseStateId, delta, zeroOutput);
+            
+            // 将消息转换为JSON
+            String json = gson.toJson(eventMessage);
+            
+            // 缓存事件到事件缓存中
+            eventCache.put(currentEventId, json);
+            
+            // 尝试发送WebSocket消息
+            if (isConnected && webSocket != null) {
+                Log.d(TAG, "Sending event message: eventId=" + currentEventId + ", baseStateId=" + currentBaseStateId);
+                webSocket.send(json);
+            } else {
+                Log.d(TAG, "WebSocket not connected, skipping event send");
+                Log.e(TAG, "Attempted to send event message: " + json);
+            }
+            
+            // 发送WebSocket发送帧成功广播，无论WebSocket是否连接
+            Intent intent = new Intent(RuntimeEvents.ACTION_WS_SENT_FRAME);
+            intent.putExtra(RuntimeEvents.EXTRA_FRAME_ID, currentEventId);
+            intent.putExtra(RuntimeEvents.EXTRA_WS_MESSAGE, json);
+            context.sendBroadcast(intent);
+        } catch (Exception e) {
+            Log.e(TAG, "Error sending event message: " + e.getMessage(), e);
             
             // 发送WebSocket发送帧失败广播
             Intent intent = new Intent(RuntimeEvents.ACTION_RUNTIME_ERROR);

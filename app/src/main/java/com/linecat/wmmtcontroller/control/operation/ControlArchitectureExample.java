@@ -115,9 +115,10 @@ public class ControlArchitectureExample {
         
         // 输出结果
         System.out.println("Input State Keys: " + inputState.getKeys());
-        System.out.println("Steering: " + inputState.getSteering());
-        System.out.println("Throttle: " + inputState.getThrottle());
-        System.out.println("Brake: " + inputState.getBrake());
+        // 以下方法已从InputState中移除，后续将在GameInputState中实现
+        // System.out.println("Steering: " + inputState.getSteering());
+        // System.out.println("Throttle: " + inputState.getThrottle());
+        // System.out.println("Brake: " + inputState.getBrake());
     }
     
     public static void main(String[] args) {

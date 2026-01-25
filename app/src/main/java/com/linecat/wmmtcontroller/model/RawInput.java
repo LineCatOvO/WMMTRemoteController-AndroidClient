@@ -188,6 +188,32 @@ public class RawInput {
     }
 
     @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        RawInput rawInput = (RawInput) o;
+        return Float.compare(rawInput.gyroPitch, gyroPitch) == 0 &&
+                Float.compare(rawInput.gyroRoll, gyroRoll) == 0 &&
+                Float.compare(rawInput.gyroYaw, gyroYaw) == 0 &&
+                Float.compare(rawInput.accelX, accelX) == 0 &&
+                Float.compare(rawInput.accelY, accelY) == 0 &&
+                Float.compare(rawInput.accelZ, accelZ) == 0 &&
+                touchPressed == rawInput.touchPressed &&
+                Float.compare(rawInput.touchX, touchX) == 0 &&
+                Float.compare(rawInput.touchY, touchY) == 0 &&
+                buttonA == rawInput.buttonA &&
+                buttonB == rawInput.buttonB &&
+                buttonC == rawInput.buttonC &&
+                buttonD == rawInput.buttonD &&
+                java.util.Objects.equals(gamepad, rawInput.gamepad);
+    }
+
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(gyroPitch, gyroRoll, gyroYaw, accelX, accelY, accelZ, touchPressed, touchX, touchY, buttonA, buttonB, buttonC, buttonD, gamepad);
+    }
+
+    @Override
     public String toString() {
         return "RawInput{" +
                 "gyroPitch=" + gyroPitch +
@@ -292,6 +318,20 @@ public class RawInput {
             buttons.put(buttonName, pressed);
         }
         
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            GamepadData that = (GamepadData) o;
+            return java.util.Objects.equals(axes, that.axes) &&
+                    java.util.Objects.equals(buttons, that.buttons);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(axes, buttons);
+        }
+
         @Override
         public String toString() {
             return "GamepadData{" +

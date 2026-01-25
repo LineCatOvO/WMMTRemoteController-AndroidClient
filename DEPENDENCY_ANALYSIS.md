@@ -257,16 +257,16 @@ public class InputRuntimeService extends Service {
 public class AppComponent {
     private final Context context;
     private final InputScriptEngine scriptEngine;
-    private final OutputController outputController;
+    private final OutputController inputStateController;
     
     public AppComponent(Context context) {
         this.context = context;
         this.scriptEngine = new JsInputScriptEngine(context);
-        this.outputController = new OutputController();
+        this.inputStateController = new OutputController();
     }
     
     public InputScriptEngine getScriptEngine() { return scriptEngine; }
-    public OutputController getOutputController() { return outputController; }
+    public OutputController getOutputController() { return inputStateController; }
     
     public ServiceComponent plusServiceComponent() {
         return new ServiceComponent(this);

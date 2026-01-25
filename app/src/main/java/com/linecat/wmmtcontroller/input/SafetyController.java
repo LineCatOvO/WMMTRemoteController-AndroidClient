@@ -8,11 +8,11 @@ import android.util.Log;
  */
 public class SafetyController {
     private static final String TAG = "SafetyController";
-    private final OutputController outputController;
+    private final InputStateController inputStateController;
     private boolean isSafetyState = false;
 
-    public SafetyController(OutputController outputController) {
-        this.outputController = outputController;
+    public SafetyController(InputStateController inputStateController) {
+        this.inputStateController = inputStateController;
     }
 
     /**
@@ -22,10 +22,10 @@ public class SafetyController {
         synchronized (this) {
             if (!isSafetyState) {
                 Log.d(TAG, "Triggering safety clear");
-                
+
                 // 立即清零所有输出
-                outputController.clearAllOutputs();
-                
+                inputStateController.clearAllOutputs();
+
                 isSafetyState = true;
             }
         }
@@ -66,7 +66,7 @@ public class SafetyController {
     public boolean verifySafeState() {
         // 验证系统状态是否安全
         // 返回 true 表示安全，false 表示不安全
-        return !isSafetyState && outputController.isOutputSafe();
+        return !isSafetyState && inputStateController.isOutputSafe();
     }
 
     /**

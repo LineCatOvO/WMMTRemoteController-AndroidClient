@@ -213,14 +213,14 @@ public class InputRuntimeService extends Service {
         // ...
         
         // 创建输出控制器
-        outputController = new OutputController();
+        inputStateController = new OutputController();
         
         // 创建新布局引擎
         DeviceMapping defaultMapping = new DeviceMapping("default", "Default Mapping", DeviceMapping.MappingType.KEYBOARD);
         enhancedLayoutEngine = new EnhancedLayoutEngine(defaultMapping);
         
         // 创建适配器，初始使用旧引擎保证兼容性
-        LayoutEngine legacyEngine = new LayoutEngine(outputController);
+        LayoutEngine legacyEngine = new LayoutEngine(inputStateController);
         layoutEngineAdapter = new LayoutEngineAdapter(legacyEngine, enhancedLayoutEngine);
         
         // ...

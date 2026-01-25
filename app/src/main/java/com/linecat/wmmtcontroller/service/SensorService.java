@@ -22,6 +22,7 @@ public class SensorService extends Service implements SensorEventListener {
     private SensorManager sensorManager;
     private Sensor gyroscopeSensor;
     private RawInput currentRawInput;
+    private RawInput lastRawInput;
     private final IBinder binder = new LocalBinder();
     private SensorDataListener listener;
     
@@ -111,9 +112,18 @@ public class SensorService extends Service implements SensorEventListener {
             currentRawInput.setGyroRoll(event.values[1]);
             currentRawInput.setGyroYaw(event.values[2]);
             
-            // 通知监听器
-            if (listener != null) {
-                listener.onSensorDataUpdate(currentRawInput);
+            // 创建当前数据的副本用于比较
+            RawInput currentCopy = new RawInput(currentRawInput);
+            
+            // 比较当前数据与上一次数据，只有不同时才通知监听器
+            if (lastRawInput == null || !currentCopy.equals(lastRawInput)) {
+                // 通知监听器
+                if (listener != null) {
+                    listener.onSensorDataUpdate(currentCopy);
+                }
+                
+                // 更新上一次数据
+                lastRawInput = currentCopy;
             }
         }
     }

@@ -15,7 +15,7 @@ import static org.mockito.Mockito.*;
 public class LayoutEngineTest {
 
     @Mock
-    private OutputController mockOutputController;
+    private InputStateController mockInputStateController;
 
     private LayoutEngine layoutEngine;
 
@@ -23,16 +23,16 @@ public class LayoutEngineTest {
     public void setUp() {
         // Initialize mocks
         MockitoAnnotations.initMocks(this);
-        
-        // Create LayoutEngine with mocked OutputController
-        layoutEngine = new LayoutEngine(mockOutputController);
+
+        // Create LayoutEngine with mocked InputStateController
+        layoutEngine = new LayoutEngine(mockInputStateController);
     }
 
     @Test
     public void testInitialization() {
         // Verify LayoutEngine initializes correctly
         assertNotNull(layoutEngine);
-        
+
         // Verify handlers are initialized
         // Note: We can't directly access private fields, but we can test behavior
         // that depends on these handlers
@@ -42,10 +42,10 @@ public class LayoutEngineTest {
     public void testSetContext() {
         // Mock context
         android.content.Context mockContext = mock(android.content.Context.class);
-        
+
         // Set context
         layoutEngine.setContext(mockContext);
-        
+
         // Verify layoutLoader is created (no direct access, but no exception thrown)
         // This test ensures setContext doesn't throw exceptions
         assertTrue(true);

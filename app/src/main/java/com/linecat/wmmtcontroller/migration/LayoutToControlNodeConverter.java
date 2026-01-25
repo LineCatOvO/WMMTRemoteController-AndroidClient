@@ -1,9 +1,9 @@
 package com.linecat.wmmtcontroller.migration;
 
-import com.linecat.wmmtcontroller.control.ControlNode;
-import com.linecat.wmmtcontroller.control.ButtonControlNode;
-import com.linecat.wmmtcontroller.control.AxisControlNode;
-import com.linecat.wmmtcontroller.control.GyroControlNode;
+import com.linecat.wmmtcontroller.control.ui.ControlNode;
+import com.linecat.wmmtcontroller.control.ui.ButtonControlNode;
+import com.linecat.wmmtcontroller.control.ui.AxisControlNode;
+import com.linecat.wmmtcontroller.control.ui.GyroControlNode;
 import com.linecat.wmmtcontroller.input.LayoutSnapshot;
 import com.linecat.wmmtcontroller.input.Region;
 

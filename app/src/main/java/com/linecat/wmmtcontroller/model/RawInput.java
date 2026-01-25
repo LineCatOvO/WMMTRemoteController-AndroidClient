@@ -82,6 +82,19 @@ public class RawInput {
         this.gyroYaw = gyroYaw;
     }
     
+    // 为了兼容性，提供X/Y/Z形式的陀螺仪方法
+    public float getGyroX() {
+        return gyroRoll; // Roll 对应 X 轴旋转
+    }
+    
+    public float getGyroY() {
+        return gyroPitch; // Pitch 对应 Y 轴旋转
+    }
+    
+    public float getGyroZ() {
+        return gyroYaw; // Yaw 对应 Z 轴旋转
+    }
+    
     // 加速度计数据 getter/setter
     public float getAccelX() {
         return accelX;

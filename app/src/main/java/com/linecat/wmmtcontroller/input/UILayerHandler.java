@@ -23,6 +23,15 @@ import java.util.Map;
 public class UILayerHandler {
     private static final String TAG = "UILayerHandler";
     
+    // 用于控制日志打印频率的变量
+    private static long lastGyroLogTime = 0;
+    private static final long GYRO_LOG_INTERVAL = 1000; // 1秒间隔
+    private static int gyroRegionCount = 0;
+    private static float lastGyroRoll = 0.0f;
+    private static float lastGyroPitch = 0.0f;
+    private static float lastGyroYaw = 0.0f;
+    private static String lastGyroRegionId = "";
+    
     /**
      * 处理 UI 层输入
      */
@@ -121,7 +130,7 @@ public class UILayerHandler {
                 processGyroRegion(region, normalizedRoll, normalizedPitch, normalizedYaw, inputState);
             }
             
-            Log.d(TAG, "Processed " + highestZIndexRegions.size() + " gyro regions with zIndex " + highestZIndex);
+            // 不再打印每个处理步骤的区域数量，由processGyroRegion统一处理日志输出
         }
     }
     
@@ -204,7 +213,23 @@ public class UILayerHandler {
         processedPitch = Math.max(-1f, Math.min(1f, processedPitch));
         processedYaw = Math.max(-1f, Math.min(1f, processedYaw));
         
-        Log.d(TAG, "Gyro region processed: " + region.getId() + ", roll: " + processedRoll + ", pitch: " + processedPitch + ", yaw: " + processedYaw);
+        // 更新统计信息
+        lastGyroRegionId = region.getId();
+        lastGyroRoll = processedRoll;
+        lastGyroPitch = processedPitch;
+        lastGyroYaw = processedYaw;
+        gyroRegionCount++;
+        
+        // 按时间间隔打印日志
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastGyroLogTime >= GYRO_LOG_INTERVAL) {
+            Log.d(TAG, "Gyro regions summary - Last processed region: " + lastGyroRegionId + 
+                  ", roll: " + lastGyroRoll + ", pitch: " + lastGyroPitch + ", yaw: " + lastGyroYaw + 
+                  ", Total processed in interval: " + gyroRegionCount);
+            // 重置计数器
+            gyroRegionCount = 0;
+            lastGyroLogTime = currentTime;
+        }
     }
     
     /**

@@ -228,8 +228,10 @@ public class FloatWindowManager {
         renderParams.copyFrom(windowParams);
         renderParams.width = WindowManager.LayoutParams.MATCH_PARENT;
         renderParams.height = WindowManager.LayoutParams.MATCH_PARENT;
+        // 初始时设置为不可见，不拦截任何触摸事件
         renderParams.flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
                 | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
                 | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
                 | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
         renderParams.gravity = Gravity.TOP | Gravity.LEFT;
@@ -505,6 +507,36 @@ public class FloatWindowManager {
             layoutsListView.setItemChecked(0, true);
         }
     }
+    
+    /**
+     * 更新布局渲染容器的触摸属性
+     */
+    private void updateLayoutRenderContainerTouchability(boolean enabled) {
+        if (layoutRenderContainer != null && windowManager != null) {
+            try {
+                WindowManager.LayoutParams params = (WindowManager.LayoutParams) layoutRenderContainer.getLayoutParams();
+                if (params != null) {
+                    if (enabled) {
+                        // 启用布局时，移除NOT_TOUCHABLE标志，但仍保持NOT_FOCUSABLE
+                        params.flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                                | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                                | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                                | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
+                    } else {
+                        // 禁用布局时，添加NOT_TOUCHABLE标志，完全不拦截触摸事件
+                        params.flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                                | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                                | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                                | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                                | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
+                    }
+                    windowManager.updateViewLayout(layoutRenderContainer, params);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to update layout render container params: " + e.getMessage());
+            }
+        }
+    }
 
     /**
      * 设置布局管理事件监听
@@ -517,6 +549,8 @@ public class FloatWindowManager {
             if (layoutRenderer != null) {
                 layoutRenderer.setLayoutEnabled(isChecked);
             }
+            // 更新布局渲染容器的触摸属性
+            updateLayoutRenderContainerTouchability(isChecked);
             // 发送布局启用状态广播
             Intent intent = new Intent("com.linecat.wmmtcontroller.ACTION_LAYOUT_ENABLED_CHANGED");
             intent.putExtra("enabled", isChecked);

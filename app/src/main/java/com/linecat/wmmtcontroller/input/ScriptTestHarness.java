@@ -304,7 +304,7 @@ public class ScriptTestHarness {
                     result.addFrameError(
                             expectedOutput.getFrameId(),
                             expectedOutput.getHeldKeys(),
-                            inputState.getKeyboard(),
+                            new ArrayList<>(inputState.getKeyboard()),
                             errorType,
                             errorMessage
                     );
@@ -330,7 +330,7 @@ public class ScriptTestHarness {
      */
     private boolean validateOutput(InputState actual, ExpectedOutput expected) {
         // 比较heldKeys
-        return actual.getKeyboard().equals(expected.getHeldKeys());
+        return new ArrayList<>(actual.getKeyboard()).equals(expected.getHeldKeys());
     }
     
     /**

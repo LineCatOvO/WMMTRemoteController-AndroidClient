@@ -2,6 +2,7 @@ package com.linecat.wmmtcontroller.control.ui;
 
 import com.linecat.wmmtcontroller.model.RawInput;
 import com.linecat.wmmtcontroller.input.LayoutSnapshot;
+import com.linecat.wmmtcontroller.control.operation.ControlAction;
 
 import java.util.Map;
 

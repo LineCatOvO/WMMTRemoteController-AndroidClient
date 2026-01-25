@@ -199,7 +199,12 @@ public class LayoutRenderer extends View {
     public boolean onTouchEvent(MotionEvent event) {
         // 如果布局未启用，不处理触摸事件
         if (!isLayoutEnabled) {
-            return super.onTouchEvent(event);
+            return false; // 不消费事件，允许穿透
+        }
+
+        // 如果没有布局或没有定义的区域，不处理触摸事件
+        if (currentLayout == null || currentLayout.getRegions() == null || currentLayout.getRegions().isEmpty()) {
+            return false; // 没有UI元素，允许触摸穿透
         }
 
         // 获取触摸坐标
@@ -216,15 +221,22 @@ public class LayoutRenderer extends View {
                     Log.d(TAG, "Touched region: " + currentTouchRegion.getId());
                     // 更新输入状态
                     updateInputState(normalizedX, normalizedY, true);
+                    return true; // 只有在触摸到区域时才消费事件
+                } else {
+                    // 触摸不在任何UI区域内，不消费事件，允许穿透
+                    currentTouchRegion = null; // 确保没有当前触摸区域
+                    return false;
                 }
-                break;
 
             case MotionEvent.ACTION_MOVE:
                 if (currentTouchRegion != null) {
                     // 更新输入状态
                     updateInputState(normalizedX, normalizedY, true);
+                    return true; // 只有在处理移动事件时才消费事件
+                } else {
+                    // 没有当前触摸区域，不消费事件
+                    return false;
                 }
-                break;
 
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
@@ -232,11 +244,15 @@ public class LayoutRenderer extends View {
                     // 重置输入状态
                     updateInputState(normalizedX, normalizedY, false);
                     currentTouchRegion = null;
+                    return true; // 只有在处理区域释放时才消费事件
+                } else {
+                    // 没有当前触摸区域，不消费事件
+                    return false;
                 }
-                break;
         }
 
-        return true;
+        // 默认情况下不消费事件
+        return false;
     }
 
     /**

@@ -44,6 +44,7 @@ public class FormattedInputMessage {
         public Long frameId;
         public String runtimeStatus;
         public String[] keyboard;
+        public String[] gamepad;
         public Mouse mouse;
         public Joystick joystick;
 
@@ -51,6 +52,7 @@ public class FormattedInputMessage {
             this.frameId = inputState.getFrameId();
             this.runtimeStatus = inputState.getRuntimeStatus();
             this.keyboard = inputState.getKeyboard().toArray(new String[inputState.getKeyboard().size()]);
+            this.gamepad = inputState.getGamepad().toArray(new String[inputState.getGamepad().size()]);
             this.mouse = new Mouse(inputState.getMouse());
             this.joystick = new Joystick(inputState.getJoystick());
         }

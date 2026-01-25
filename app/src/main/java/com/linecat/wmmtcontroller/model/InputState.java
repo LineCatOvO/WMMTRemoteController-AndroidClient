@@ -102,6 +102,7 @@ public class InputState {
     
     private MouseState mouse = new MouseState();
     private Set<String> keyboard = new HashSet<>();
+    private Set<String> gamepad = new HashSet<>(); // 添加游戏手柄字段
     private List<JoystickState> joysticks = new ArrayList<>();
     private JoystickState joystick = new JoystickState(0.0f, 0.0f); // 添加 joystick 字段
 
@@ -289,5 +290,30 @@ public class InputState {
     
     public void setJoystick(JoystickState joystick) {
         this.joystick = joystick;
+    }
+    
+    // 游戏手柄相关 getter/setter
+    public Set<String> getGamepad() { return gamepad; }
+    
+    public void setGamepad(Set<String> gamepad) {
+        if (gamepad != null) {
+            this.gamepad = gamepad;
+        }
+    }
+    
+    public void addGamepadButton(String button) {
+        gamepad.add(button);
+    }
+    
+    public void removeGamepadButton(String button) {
+        gamepad.remove(button);
+    }
+    
+    public boolean isGamepadButtonPressed(String button) {
+        return gamepad.contains(button);
+    }
+    
+    public void clearGamepad() {
+        gamepad.clear();
     }
 }

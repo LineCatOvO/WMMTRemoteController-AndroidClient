@@ -163,11 +163,11 @@ public class MappingLayerHandler {
         axisValue = applyOutputRange(axisValue, region.getOutputRange());
         axisValue = applyCurve(axisValue, region.getCurve());
         
-        // 对于游戏手柄按钮，将其添加到键盘状态中
+        // 对于游戏手柄按钮，将其添加到游戏手柄状态中
         if (button != null && buttonPressed) {
-            inputState.getKeyboard().add(button);
+            inputState.addGamepadButton(button);
         } else if (button != null && !buttonPressed) {
-            inputState.getKeyboard().remove(button); // 确保松开按钮时从键盘状态中移除
+            inputState.removeGamepadButton(button); // 确保松开按钮时从游戏手柄状态中移除
         }
         
         // 添加日志频率控制

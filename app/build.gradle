@@ -34,10 +34,11 @@ dependencies {
     implementation libs.appcompat
     implementation libs.material
     testImplementation libs.junit
+    testImplementation 'org.assertj:assertj-core:3.25.3'
     testImplementation 'org.mockito:mockito-core:5.11.0'
-    testImplementation 'org.mockito:mockito-inline:5.11.0'
     androidTestImplementation libs.ext.junit
     androidTestImplementation libs.espresso.core
+    androidTestImplementation 'org.assertj:assertj-core:3.25.3'
     
     // 添加Gson依赖，用于JSON序列化/反序列化
     implementation 'com.google.code.gson:gson:2.10.1'

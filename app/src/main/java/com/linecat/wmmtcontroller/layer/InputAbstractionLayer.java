@@ -447,6 +447,10 @@ public final class InputAbstractionLayer implements PlatformAdaptationLayer.RawE
             this.canceled = canceled;
             this.space = space;
         }
+        
+        public boolean isCanceled() {
+            return canceled;
+        }
     }
     
     /**

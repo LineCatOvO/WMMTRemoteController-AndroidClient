@@ -36,7 +36,7 @@ public class InputState {
     private long frameId = 0;
 
     // 运行时状态
-    private String runtimeStatus = "";
+    private String runtimeStatus = "ok";
 
     // 内部类定义
     public static class MouseState {
@@ -90,11 +90,35 @@ public class InputState {
         public void setSmoothing(float smoothing) { this.smoothing = smoothing; }
     }
 
+    public static class GyroscopeState {
+        private float pitch = 0.0f;
+        private float roll = 0.0f;
+        private float yaw = 0.0f;
+        private float deadzone = 2.0f;
+        private float smoothing = 0.0f;
+
+        public float getPitch() { return pitch; }
+        public void setPitch(float pitch) { this.pitch = pitch; }
+
+        public float getRoll() { return roll; }
+        public void setRoll(float roll) { this.roll = roll; }
+
+        public float getYaw() { return yaw; }
+        public void setYaw(float yaw) { this.yaw = yaw; }
+
+        public float getDeadzone() { return deadzone; }
+        public void setDeadzone(float deadzone) { this.deadzone = deadzone; }
+
+        public float getSmoothing() { return smoothing; }
+        public void setSmoothing(float smoothing) { this.smoothing = smoothing; }
+    }
+
     private MouseState mouse = new MouseState();
     private Set<String> keyboard = new HashSet<>();
     private Set<String> gamepad = new HashSet<>(); // 添加游戏手柄字段
     private List<JoystickState> joysticks = new ArrayList<>();
     private JoystickState joystick = new JoystickState(0.0f, 0.0f); // 添加 joystick 字段
+    private GyroscopeState gyroscope = new GyroscopeState(); // 添加 gyroscope 字段
 
     public InputState() {
         // 初始化键盘按键状态
@@ -224,6 +248,14 @@ public class InputState {
     public Set<String> getKeyboard() { return keyboard; }
     public void setKeyboard(Set<String> keyboard) { this.keyboard = keyboard; }
 
+    // 添加键盘列表设置方法，用于测试
+    public void setKeyboard(List<String> keys) {
+        this.keyboard.clear();
+        if (keys != null) {
+            this.keyboard.addAll(keys);
+        }
+    }
+
     public List<JoystickState> getJoysticks() { return joysticks; }
     public void setJoysticks(List<JoystickState> joysticks) { this.joysticks = joysticks; }
 
@@ -254,6 +286,15 @@ public class InputState {
 
     public void setJoystick(JoystickState joystick) {
         this.joystick = joystick;
+    }
+
+    // 添加缺失的 gyroscope 相关方法
+    public GyroscopeState getGyroscope() {
+        return gyroscope;
+    }
+
+    public void setGyroscope(GyroscopeState gyroscope) {
+        this.gyroscope = gyroscope;
     }
 
     // 游戏手柄相关 getter/setter

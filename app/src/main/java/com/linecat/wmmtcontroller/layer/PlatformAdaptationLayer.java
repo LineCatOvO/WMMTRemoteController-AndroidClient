@@ -24,27 +24,46 @@ public final class PlatformAdaptationLayer {
     private static final String TAG = "PlatformAdaptationLayer";
     private static final int MAX_QUEUE_SIZE = 4096;
 
+    public enum OverlayMode {
+        SYSTEM_OVERLAY,     // TYPE_APPLICATION_OVERLAY (production)
+        ACTIVITY_PANEL      // TYPE_APPLICATION_PANEL (instrumentation tests)
+    }
+
     private final Context context;
     private final RawEventSink sink;
     private final SensorManager sensorManager;
     private final Sensor gyroscopeSensor;
-    private final OverlayView overlayView;
+    private volatile OverlayView overlayView; // 延迟创建
     private final WindowManager windowManager;
     private final ConcurrentLinkedQueue<RawEvent> eventQueue;
     private final SensorEventListener sensorEventListener;
+    private final OverlayMode overlayMode;
+    private final android.os.IBinder hostWindowToken; // nullable
 
     private boolean isOverlayRunning = false;
     private int sensorDropCount = 0;
 
     // 构造函数
     public PlatformAdaptationLayer(Context context, RawEventSink sink) {
-        this.context = context;
+        this(context, sink, OverlayMode.SYSTEM_OVERLAY, null);
+    }
+
+    // Test-only ctor (used by androidTest)
+    public PlatformAdaptationLayer(
+            Context context,
+            RawEventSink sink,
+            OverlayMode overlayMode,
+            android.os.IBinder hostWindowToken
+    ) {
+        this.context = context.getApplicationContext();
         this.sink = sink;
+        this.overlayMode = overlayMode;
+        this.hostWindowToken = hostWindowToken;
         this.sensorManager = (SensorManager) context.getSystemService(Context.SENSOR_SERVICE);
         this.gyroscopeSensor = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
         this.windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
-        this.overlayView = new OverlayView(context);
         this.eventQueue = new ConcurrentLinkedQueue<>();
+        this.overlayView = null; // 延迟到startOverlay时创建
         
         // 初始化传感器事件监听器
         this.sensorEventListener = new SensorEventListener() {
@@ -66,6 +85,25 @@ public final class PlatformAdaptationLayer {
     public void startOverlay() {
         if (isOverlayRunning) {
             return;
+        }
+
+        // 能力检查与可运行失败处理
+        if (overlayMode == OverlayMode.SYSTEM_OVERLAY) {
+            if (!android.provider.Settings.canDrawOverlays(context)) {
+                // 关键：不要崩溃，让测试/上层可以观测到失败原因
+                sendRawWindowEvent(RawWindowEvent.Kind.ATTACH_FAILED, getCurrentMetrics());
+                return;
+            }
+        } else {
+            if (hostWindowToken == null) {
+                sendRawWindowEvent(RawWindowEvent.Kind.ATTACH_FAILED, getCurrentMetrics());
+                return;
+            }
+        }
+
+        // 同步创建OverlayView，确保在主线程中创建，避免Handler创建异常
+        if (overlayView == null) {
+            overlayView = new OverlayView(context);
         }
 
         // 创建 overlay 窗口
@@ -114,7 +152,14 @@ public final class PlatformAdaptationLayer {
      */
     private WindowManager.LayoutParams createOverlayParams() {
         WindowManager.LayoutParams params = new WindowManager.LayoutParams();
-        params.type = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
+
+        if (overlayMode == OverlayMode.SYSTEM_OVERLAY) {
+            params.type = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
+        } else {
+            params.type = WindowManager.LayoutParams.TYPE_APPLICATION_PANEL;
+            params.token = hostWindowToken; // 关键：绑定 Activity window token
+        }
+
         params.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                 | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
                 | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
@@ -294,7 +339,7 @@ public final class PlatformAdaptationLayer {
     }
 
     // 事件类型标记接口
-    private interface RawEvent {}
+    public interface RawEvent {}
 
     // Raw 事件接收器接口
     public interface RawEventSink {
@@ -313,7 +358,8 @@ public final class PlatformAdaptationLayer {
         public enum Kind {
             ATTACHED,
             DETACHED,
-            METRICS_CHANGED
+            METRICS_CHANGED,
+            ATTACH_FAILED
         }
 
         public static final class Metrics {

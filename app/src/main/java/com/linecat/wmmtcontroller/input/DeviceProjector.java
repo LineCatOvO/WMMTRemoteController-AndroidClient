@@ -46,7 +46,7 @@ public class DeviceProjector {
             projectorCallCount++;
             long currentTime = System.currentTimeMillis();
             if (currentTime - lastProjectorLogTime >= PROJECTOR_LOG_INTERVAL) {
-                Log.d(TAG, "Device projection summary - Successful projections in interval: " + projectorCallCount + ", last frameId: " + frameId);
+
                 // 重置计数器
                 projectorCallCount = 0;
                 lastProjectorLogTime = currentTime;
@@ -56,7 +56,7 @@ public class DeviceProjector {
             projectorCallCount++;
             long currentTime = System.currentTimeMillis();
             if (currentTime - lastProjectorLogTime >= PROJECTOR_LOG_INTERVAL) {
-                Log.d(TAG, "Device projection summary - Skipped projections in interval: " + projectorCallCount + ", last frameId: " + frameId);
+
                 // 重置计数器
                 projectorCallCount = 0;
                 lastProjectorLogTime = currentTime;

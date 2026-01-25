@@ -6,6 +6,7 @@ import android.util.Log;
 
 import com.linecat.wmmtcontroller.MainActivity;
 import com.linecat.wmmtcontroller.input.LayoutSnapshot;
+import com.linecat.wmmtcontroller.service.TransportController;
 
 /**
  * 悬浮球控制器
@@ -16,10 +17,20 @@ public class OverlayController {
     private final Context context;
     private final FloatWindowManager floatWindowManager;
     private boolean isOverlayVisible = false;
+    private TransportController transportController;
 
     public OverlayController(Context context) {
         this.context = context;
         this.floatWindowManager = FloatWindowManager.getInstance(context);
+    }
+    
+    /**
+     * 设置TransportController实例
+     */
+    public void setTransportController(TransportController transportController) {
+        this.transportController = transportController;
+        // 将TransportController传递给FloatWindowManager
+        floatWindowManager.setTransportController(transportController);
     }
 
     /**

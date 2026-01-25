@@ -53,9 +53,8 @@ public class InputSender {
         if (transportController.isConnected()) {
             transportController.sendInputState(inputState);
             lastSendTime = currentTime;
-            Log.d(TAG, "Input state sent, frameId: " + frameId);
         } else {
-            Log.d(TAG, "Not connected, skipping input state send, frameId: " + frameId);
+
         }
     }
     

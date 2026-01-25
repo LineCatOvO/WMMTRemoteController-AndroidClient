@@ -7,8 +7,9 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"
+            tools:ignore="ForegroundServicesPolicy" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <uses-feature android:name="android.hardware.sensor.gyroscope" android:required="true" />
 
@@ -27,15 +28,14 @@
         <activity
                 android:name=".MainActivity"
                 android:exported="true"
-                android:launchMode="singleTop"
-                android:screenOrientation="portrait">
+                android:launchMode="singleTop">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        
-        
+
+
 
         <!-- 传感器服务 -->
         <service
@@ -45,7 +45,7 @@
         <!-- 输入运行时服务 -->
         <service
                 android:name=".service.InputRuntimeService"
-                android:foregroundServiceType="connectedDevice"
+                android:foregroundServiceType="dataSync"
                 android:exported="false" />
     </application>
 

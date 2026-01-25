@@ -80,9 +80,9 @@ public class UILayerHandler {
                     processUIElement(region, normalizedX, normalizedY, inputState);
                 }
                 
-                Log.d(TAG, "Processed " + highestZIndexRegions.size() + " regions with zIndex " + highestZIndex);
+
             } else {
-                Log.d(TAG, "Touch input outside any region");
+
             }
         }
     }
@@ -223,9 +223,7 @@ public class UILayerHandler {
         // 按时间间隔打印日志
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastGyroLogTime >= GYRO_LOG_INTERVAL) {
-            Log.d(TAG, "Gyro regions summary - Last processed region: " + lastGyroRegionId + 
-                  ", roll: " + lastGyroRoll + ", pitch: " + lastGyroPitch + ", yaw: " + lastGyroYaw + 
-                  ", Total processed in interval: " + gyroRegionCount);
+
             // 重置计数器
             gyroRegionCount = 0;
             lastGyroLogTime = currentTime;

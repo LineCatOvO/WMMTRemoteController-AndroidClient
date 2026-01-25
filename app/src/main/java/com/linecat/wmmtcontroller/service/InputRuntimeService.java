@@ -221,19 +221,36 @@ public class InputRuntimeService extends Service {
             @Override
             public void onReceive(Context context, Intent intent) {
                 String action = intent.getAction();
+                Log.d(TAG, "[连接广播] 接收到广播，action: " + action);
                 if (action != null) {
                     switch (action) {
                         case "com.linecat.wmmtcontroller.ACTION_START_CONNECT":
-                            Log.d(TAG, "Received start connect broadcast");
+                            Log.d(TAG, "[连接广播] 收到开始连接广播，准备调用transportController.connect()");
+                            if (transportController == null) {
+                                Log.e(TAG, "[连接广播] transportController为null，无法调用connect()方法");
+                                break;
+                            }
+                            Log.d(TAG, "[连接广播] transportController不为null，开始调用connect()方法");
                             // 开始连接WebSocket
                             transportController.connect();
+                            Log.d(TAG, "[连接广播] transportController.connect()方法调用完成");
                             break;
                         case "com.linecat.wmmtcontroller.ACTION_STOP_CONNECT":
-                            Log.d(TAG, "Received stop connect broadcast");
+                            Log.d(TAG, "[连接广播] 收到停止连接广播，准备调用transportController.disconnect()");
+                            if (transportController == null) {
+                                Log.e(TAG, "[连接广播] transportController为null，无法调用disconnect()方法");
+                                break;
+                            }
                             // 断开WebSocket连接
                             transportController.disconnect();
+                            Log.d(TAG, "[连接广播] transportController.disconnect()方法调用完成");
+                            break;
+                        default:
+                            Log.w(TAG, "[连接广播] 收到未知广播action: " + action);
                             break;
                     }
+                } else {
+                    Log.w(TAG, "[连接广播] 接收到的广播action为null");
                 }
             }
         };
@@ -242,7 +259,11 @@ public class InputRuntimeService extends Service {
         android.content.IntentFilter filter = new android.content.IntentFilter();
         filter.addAction("com.linecat.wmmtcontroller.ACTION_START_CONNECT");
         filter.addAction("com.linecat.wmmtcontroller.ACTION_STOP_CONNECT");
-        registerReceiver(connectControlReceiver, filter);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(connectControlReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(connectControlReceiver, filter);
+        }
     }
     
     /**
@@ -274,7 +295,11 @@ public class InputRuntimeService extends Service {
         // 注册广播接收器
         android.content.IntentFilter filter = new android.content.IntentFilter();
         filter.addAction(RuntimeEvents.ACTION_WS_DISCONNECTED);
-        registerReceiver(wsStatusReceiver, filter);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(wsStatusReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(wsStatusReceiver, filter);
+        }
     }
 
     /**
@@ -333,6 +358,9 @@ public class InputRuntimeService extends Service {
         
         // 将输入控制器设置到布局渲染器
         overlayController.setInputController(inputController);
+        
+        // 将transportController设置到overlayController
+        overlayController.setTransportController(transportController);
         
         // 创建安全控制器
         safetyController = new SafetyController(outputController);
@@ -438,7 +466,7 @@ public class InputRuntimeService extends Service {
      * 启动事件驱动机制
      */
     private void startMainLoop() {
-        Log.d(TAG, "Event-driven input processing started");
+
         // 设置运行标志为true
         isRunning = true;
     }
@@ -473,7 +501,7 @@ public class InputRuntimeService extends Service {
      */
     private void stopMainLoop() {
         isRunning = false;
-        Log.d(TAG, "Event-driven input processing stopped");
+
     }
 
     /**

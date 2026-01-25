@@ -84,7 +84,7 @@ public class MainActivity extends AppCompatActivity {
      * 启动输入运行时服务
      */
     private void startInputService() {
-        Log.d(TAG, "Starting input runtime service...");
+
         Intent intent = new Intent(this, InputRuntimeService.class);
         startService(intent);
         isServiceRunning = true;
@@ -95,7 +95,7 @@ public class MainActivity extends AppCompatActivity {
      * 停止输入运行时服务
      */
     private void stopInputService() {
-        Log.d(TAG, "Stopping input runtime service...");
+
         Intent intent = new Intent(this, InputRuntimeService.class);
         stopService(intent);
         isServiceRunning = false;

@@ -76,8 +76,7 @@ public class MappingLayerHandler {
         // 按时间间隔打印日志汇总
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastMappingLogTime >= MAPPING_LOG_INTERVAL) {
-            Log.d(TAG, "Mapping processing summary - Total processings in interval: " + mappingProcessedCount + 
-                  ", Total regions processed: " + regionProcessedCount);
+            
             // 重置计数器
             mappingProcessedCount = 0;
             regionProcessedCount = 0;
@@ -173,7 +172,7 @@ public class MappingLayerHandler {
         // 添加日志频率控制
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastMappingLogTime >= MAPPING_LOG_INTERVAL) {
-            Log.d(TAG, "Gamepad mapping processed: " + region.getId() + ", axis: " + axis + ", value: " + axisValue + ", button: " + button + ", pressed: " + buttonPressed);
+
         }
     }
     

@@ -25,6 +25,7 @@ import com.linecat.wmmtcontroller.input.LayoutSnapshot;
 import com.linecat.wmmtcontroller.model.ConnectionInfo;
 import com.linecat.wmmtcontroller.service.RuntimeConfig;
 import com.linecat.wmmtcontroller.service.RuntimeEvents;
+import com.linecat.wmmtcontroller.service.TransportController;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -86,6 +87,9 @@ public class FloatWindowManager {
     // 布局渲染器
     private LayoutRenderer layoutRenderer;
     private ViewGroup layoutRenderContainer;
+    
+    // 传输控制器，用于直接调用连接和断开连接方法
+    private TransportController transportController;
 
     /**
      * 初始化浮窗
@@ -252,27 +256,44 @@ public class FloatWindowManager {
     private void setupMenuItemListeners() {
         // 开始连接按钮点击事件
         floatView.findViewById(R.id.btn_start_connect).setOnClickListener(v -> {
-            Log.d(TAG, "Start connect button clicked");
+            Log.d(TAG, "[连接流程] 开始连接按钮被点击");
 
             // 检查连接信息是否完整
+            Log.d(TAG, "[连接流程] 开始检查连接信息完整性");
             if (!checkConnectionInfo()) {
+                Log.w(TAG, "[连接流程] 连接信息不完整，无法开始连接");
                 Toast.makeText(context, "请先填写完整的连接信息", Toast.LENGTH_SHORT).show();
                 hidePopupMenu();
                 return;
             }
+            Log.d(TAG, "[连接流程] 连接信息检查通过，可以开始连接");
 
-            // 发送开始连接广播
-            Intent intent = new Intent("com.linecat.wmmtcontroller.ACTION_START_CONNECT");
-            context.sendBroadcast(intent);
+            // 直接调用TransportController的connect方法
+            if (transportController == null) {
+                Log.e(TAG, "[连接流程] transportController为null，无法调用connect()方法");
+                Toast.makeText(context, "连接服务未初始化", Toast.LENGTH_SHORT).show();
+                hidePopupMenu();
+                return;
+            }
+            Log.d(TAG, "[连接流程] 准备直接调用transportController.connect()");
+            transportController.connect();
+            Log.d(TAG, "[连接流程] transportController.connect()调用完成");
             hidePopupMenu();
         });
 
         // 断开连接按钮点击事件
         floatView.findViewById(R.id.btn_stop_connect).setOnClickListener(v -> {
-            Log.d(TAG, "Stop connect button clicked");
-            // 发送断开连接广播
-            Intent intent = new Intent("com.linecat.wmmtcontroller.ACTION_STOP_CONNECT");
-            context.sendBroadcast(intent);
+            Log.d(TAG, "[连接流程] 停止连接按钮被点击");
+            // 直接调用TransportController的disconnect方法
+            if (transportController == null) {
+                Log.e(TAG, "[连接流程] transportController为null，无法调用disconnect()方法");
+                Toast.makeText(context, "连接服务未初始化", Toast.LENGTH_SHORT).show();
+                hidePopupMenu();
+                return;
+            }
+            Log.d(TAG, "[连接流程] 准备直接调用transportController.disconnect()");
+            transportController.disconnect();
+            Log.d(TAG, "[连接流程] transportController.disconnect()调用完成");
             hidePopupMenu();
         });
 
@@ -633,29 +654,33 @@ public class FloatWindowManager {
      */
     private boolean checkConnectionInfo() {
         // 从RuntimeConfig获取当前连接信息
+        Log.d(TAG, "[连接检查] 初始化RuntimeConfig，准备获取连接信息");
         RuntimeConfig runtimeConfig = new RuntimeConfig(context);
         ConnectionInfo connectionInfo = runtimeConfig.getDefaultConnectionInfo();
+        Log.d(TAG, "[连接检查] 获取到的连接信息: " + connectionInfo);
 
         if (connectionInfo == null) {
-            Log.w(TAG, "No connection info found");
+            Log.w(TAG, "[连接检查] 未找到连接信息，连接信息为空");
             return false;
         }
 
         String address = connectionInfo.getAddress();
         int port = connectionInfo.getPort();
+        Log.d(TAG, "[连接检查] 连接信息详情 - 地址: " + address + ", 端口: " + port);
 
         // 检查地址是否为空或无效
         if (address == null || address.trim().isEmpty()) {
-            Log.w(TAG, "Address is empty");
+            Log.w(TAG, "[连接检查] 连接地址为空或无效: " + address);
             return false;
         }
 
         // 检查端口是否在有效范围内
         if (port < 1 || port > 65535) {
-            Log.w(TAG, "Port is invalid: " + port);
+            Log.w(TAG, "[连接检查] 连接端口无效: " + port + "，有效范围是1-65535");
             return false;
         }
 
+        Log.d(TAG, "[连接检查] 连接信息完整且有效，地址: " + address + ", 端口: " + port);
         return true;
     }
 
@@ -664,6 +689,14 @@ public class FloatWindowManager {
      */
     public void showConnectionError() {
         Toast.makeText(context, "连接失败，请检查服务器地址和端口", Toast.LENGTH_SHORT).show();
+    }
+    
+    /**
+     * 设置TransportController实例
+     */
+    public void setTransportController(TransportController transportController) {
+        this.transportController = transportController;
+        Log.d(TAG, "TransportController实例已设置");
     }
 
     /**

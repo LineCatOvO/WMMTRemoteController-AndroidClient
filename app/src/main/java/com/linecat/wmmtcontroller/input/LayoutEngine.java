@@ -142,7 +142,7 @@ public class LayoutEngine {
         layoutExecutionCount++;
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastLayoutLogTime >= LAYOUT_LOG_INTERVAL) {
-            Log.d(TAG, "Layout execution summary - Total executions in interval: " + layoutExecutionCount + ", frameId: " + frameId);
+
             // 重置计数器
             layoutExecutionCount = 0;
             lastLayoutLogTime = currentTime;

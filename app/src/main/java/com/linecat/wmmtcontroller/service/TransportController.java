@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.os.Build;
 import android.util.Log;
 
 import com.linecat.wmmtcontroller.model.InputState;
@@ -54,7 +55,11 @@ public class TransportController {
         // 注册连接信息更新广播接收器
         IntentFilter filter = new IntentFilter();
         filter.addAction(RuntimeEvents.ACTION_CONNECTION_INFO_UPDATED);
-        context.registerReceiver(connectionInfoUpdateReceiver, filter);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(connectionInfoUpdateReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            context.registerReceiver(connectionInfoUpdateReceiver, filter);
+        }
         
         this.webSocketClient = new WebSocketClient(context, runtimeConfig.getWebSocketUrl());
     }
@@ -71,8 +76,23 @@ public class TransportController {
      * 连接到服务器
      */
     public void connect() {
+        Log.d(TAG, "[传输控制] 开始执行connect()方法");
+        
+        // 检查webSocketClient是否为null
+        if (webSocketClient == null) {
+            Log.e(TAG, "[传输控制] webSocketClient为null，无法执行connect()方法");
+            return;
+        }
+        
+        // 获取WebSocket URL
+        String wsUrl = runtimeConfig.getWebSocketUrl();
+        Log.d(TAG, "[传输控制] WebSocket URL: " + wsUrl);
+        
+        // 调用WebSocketClient的connect方法
+        Log.d(TAG, "[传输控制] 准备调用webSocketClient.connect()");
         webSocketClient.connect();
-        Log.d(TAG, "Connecting to server: " + runtimeConfig.getWebSocketUrl());
+        Log.d(TAG, "[传输控制] webSocketClient.connect()调用完成");
+        Log.d(TAG, "[传输控制] 正在连接到服务器: " + wsUrl);
     }
 
     /**
@@ -91,14 +111,10 @@ public class TransportController {
      * 发送输入状态
      */
     public void sendInputState(InputState inputState) {
-        Log.d(TAG, "Attempting to send input state, frameId: " + inputState.getFrameId());
         if (webSocketClient.isConnected()) {
             webSocketClient.sendInputState(inputState);
             totalMessagesSent++;
             lastMessageTime = System.currentTimeMillis();
-            Log.d(TAG, "Input state sent, frameId: " + inputState.getFrameId());
-        } else {
-            Log.d(TAG, "WebSocket not connected, input state will be sent when connection is established");
         }
     }
 

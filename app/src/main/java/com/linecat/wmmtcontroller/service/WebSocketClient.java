@@ -2,7 +2,9 @@ package com.linecat.wmmtcontroller.service;
 
 import android.content.Context;
 import android.content.Intent;
+import android.os.Handler;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.google.gson.Gson;
 import com.linecat.wmmtcontroller.model.FormattedInputMessage;
@@ -34,6 +36,14 @@ public class WebSocketClient {
     private int reconnectAttempts = 0;
     // 最大重连延迟（30秒）
     private static final long MAX_RECONNECT_DELAY = 30000;
+    // 连接超时时间（3秒）
+    private static final long CONNECTION_TIMEOUT = 3000;
+    // 超时处理Handler
+    private Handler timeoutHandler;
+    // 连接开始时间
+    private long connectStartTime;
+    // 连接结果回调
+    private boolean connectionResultReported = false;
     
     /**
      * WebSocket客户端构造函数
@@ -49,11 +59,19 @@ public class WebSocketClient {
      * 初始化WebSocket客户端
      */
     public void init() {
+        Log.d(TAG, "[WebSocket] 开始执行init()方法");
+        
+        Log.d(TAG, "[WebSocket] 初始化OkHttpClient");
         client = new OkHttpClient();
+        
+        Log.d(TAG, "[WebSocket] 初始化Gson实例");
         gson = new Gson();
         
-        // 初始化时不直接连接，仅准备客户端
-        Log.d(TAG, "WebSocketClient initialized, ready to connect");
+        Log.d(TAG, "[WebSocket] 初始化超时处理Handler");
+        timeoutHandler = new Handler();
+        
+        Log.d(TAG, "[WebSocket] 初始化完成，当前服务器URL: " + serverUrl);
+        Log.d(TAG, "[WebSocket] WebSocketClient已准备就绪，可以连接");
     }
     
     /**
@@ -62,20 +80,62 @@ public class WebSocketClient {
     public void connect() {
         if (isConnected) {
             Log.d(TAG, "WebSocket already connected, skipping connect");
+            showConnectionToast(true, 0);
             return;
         }
         
+        // 重置连接结果报告标志
+        connectionResultReported = false;
+        // 记录连接开始时间
+        connectStartTime = System.currentTimeMillis();
+        
+        Log.d(TAG, "[连接开始] 准备连接到服务器: " + serverUrl);
+        Log.d(TAG, "[连接开始] 连接超时时间设置为: " + CONNECTION_TIMEOUT + "ms");
+        
         try {
             URI serverUri = new URI(serverUrl);
+            Log.d(TAG, "[连接开始] 解析服务器URI成功: " + serverUri.toString());
+            
             Request request = new Request.Builder()
                     .url(serverUri.toString())
                     .build();
+            Log.d(TAG, "[连接开始] 构建WebSocket请求成功");
+            
+            // 设置连接超时任务
+            timeoutHandler.postDelayed(() -> {
+                if (!isConnected && !connectionResultReported) {
+                    long elapsedTime = System.currentTimeMillis() - connectStartTime;
+                    Log.e(TAG, "[连接超时] 连接服务器超时，耗时: " + elapsedTime + "ms，超过超时时间: " + CONNECTION_TIMEOUT + "ms");
+                    connectionResultReported = true;
+                    
+                    // 清理WebSocket资源
+                    if (webSocket != null) {
+                        webSocket.close(1000, "Connection timeout");
+                        webSocket = null;
+                    }
+                    
+                    isConnected = false;
+                    
+                    // 发送WebSocket断开连接广播
+                    Intent intent = new Intent(RuntimeEvents.ACTION_WS_DISCONNECTED);
+                    context.sendBroadcast(intent);
+                    
+                    // 显示连接失败toast
+                    showConnectionToast(false, elapsedTime);
+                }
+            }, CONNECTION_TIMEOUT);
             
             webSocket = client.newWebSocket(request, new WebSocketListener() {
                 @Override
                 public void onOpen(WebSocket webSocket, okhttp3.Response response) {
+                    long elapsedTime = System.currentTimeMillis() - connectStartTime;
+                    Log.d(TAG, "[连接成功] WebSocket连接成功，耗时: " + elapsedTime + "ms");
+                    
+                    // 取消超时任务
+                    timeoutHandler.removeCallbacksAndMessages(null);
+                    
                     isConnected = true;
-                    Log.d(TAG, "WebSocket connected");
+                    connectionResultReported = true;
                     
                     // 连接成功，重置重连尝试次数
                     reconnectAttempts = 0;
@@ -83,29 +143,32 @@ public class WebSocketClient {
                     // 发送WebSocket连接成功广播
                     Intent intent = new Intent(RuntimeEvents.ACTION_WS_CONNECTED);
                     context.sendBroadcast(intent);
+                    
+                    // 显示连接成功toast
+                    showConnectionToast(true, elapsedTime);
                 }
                 
                 @Override
                 public void onMessage(WebSocket webSocket, String text) {
-                    Log.d(TAG, "WebSocket message: " + text);
+                    Log.d(TAG, "[消息接收] WebSocket消息: " + text);
                 }
                 
                 @Override
                 public void onMessage(WebSocket webSocket, ByteString bytes) {
-                    Log.d(TAG, "WebSocket message (bytes): " + bytes.hex());
+                    Log.d(TAG, "[消息接收] WebSocket二进制消息: " + bytes.hex());
                 }
                 
                 @Override
                 public void onClosing(WebSocket webSocket, int code, String reason) {
+                    Log.d(TAG, "[连接关闭中] WebSocket关闭中: " + code + " - " + reason);
                     isConnected = false;
                     webSocket.close(1000, null);
-                    Log.d(TAG, "WebSocket closing: " + code + " - " + reason);
                 }
                 
                 @Override
                 public void onClosed(WebSocket webSocket, int code, String reason) {
+                    Log.d(TAG, "[连接已关闭] WebSocket已关闭: " + code + " - " + reason);
                     isConnected = false;
-                    Log.d(TAG, "WebSocket closed: " + code + " - " + reason);
                     
                     // 发送WebSocket断开连接广播
                     Intent intent = new Intent(RuntimeEvents.ACTION_WS_DISCONNECTED);
@@ -114,8 +177,14 @@ public class WebSocketClient {
                 
                 @Override
                 public void onFailure(WebSocket webSocket, Throwable t, okhttp3.Response response) {
+                    long elapsedTime = System.currentTimeMillis() - connectStartTime;
+                    Log.e(TAG, "[连接失败] WebSocket连接失败，耗时: " + elapsedTime + "ms，错误原因: " + t.getMessage(), t);
+                    
+                    // 取消超时任务
+                    timeoutHandler.removeCallbacksAndMessages(null);
+                    
                     isConnected = false;
-                    Log.e(TAG, "WebSocket failure: " + t.getMessage(), t);
+                    connectionResultReported = true;
                     
                     // 发送WebSocket断开连接广播
                     Intent intent = new Intent(RuntimeEvents.ACTION_WS_DISCONNECTED);
@@ -127,25 +196,40 @@ public class WebSocketClient {
                         WebSocketClient.this.webSocket = null;
                     }
                     
+                    // 显示连接失败toast
+                    showConnectionToast(false, elapsedTime);
+                    
                     // 不自动重连，等待用户手动触发
                 }
             });
             
-            Log.d(TAG, "WebSocket connection started to " + serverUrl);
+            Log.d(TAG, "[连接开始] WebSocket连接请求已发送到服务器");
         } catch (URISyntaxException e) {
+            long elapsedTime = System.currentTimeMillis() - connectStartTime;
+            Log.e(TAG, "[连接失败] 无效的WebSocket URI: " + serverUrl, e);
+            
             isConnected = false;
-            Log.e(TAG, "Invalid WebSocket URI: " + serverUrl, e);
+            connectionResultReported = true;
             
             // 发送WebSocket连接失败广播
             Intent intent = new Intent(RuntimeEvents.ACTION_WS_DISCONNECTED);
             context.sendBroadcast(intent);
+            
+            // 显示连接失败toast
+            showConnectionToast(false, elapsedTime);
         } catch (Exception e) {
+            long elapsedTime = System.currentTimeMillis() - connectStartTime;
+            Log.e(TAG, "[连接失败] 连接WebSocket时发生意外错误: " + e.getMessage(), e);
+            
             isConnected = false;
-            Log.e(TAG, "Unexpected error when connecting WebSocket: " + e.getMessage(), e);
+            connectionResultReported = true;
             
             // 发送WebSocket连接失败广播
             Intent intent = new Intent(RuntimeEvents.ACTION_WS_DISCONNECTED);
             context.sendBroadcast(intent);
+            
+            // 显示连接失败toast
+            showConnectionToast(false, elapsedTime);
         }
     }
     
@@ -228,6 +312,31 @@ public class WebSocketClient {
     }
     
     /**
+     * 显示连接结果Toast
+     * @param success 是否连接成功
+     * @param elapsedTime 连接耗时（毫秒）
+     */
+    private void showConnectionToast(boolean success, long elapsedTime) {
+        // 在主线程显示Toast
+        new Handler(context.getMainLooper()).post(() -> {
+            String message;
+            if (success) {
+                message = "连接成功，耗时 " + elapsedTime + "ms";
+                Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
+                Log.d(TAG, "[Toast提示] 显示连接成功提示: " + message);
+            } else {
+                if (elapsedTime >= CONNECTION_TIMEOUT) {
+                    message = "连接超时，超过 " + CONNECTION_TIMEOUT + "ms";
+                } else {
+                    message = "连接失败，耗时 " + elapsedTime + "ms";
+                }
+                Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
+                Log.d(TAG, "[Toast提示] 显示连接失败提示: " + message);
+            }
+        });
+    }
+    
+    /**
      * 关闭WebSocket客户端
      */
     public void shutdown() {
@@ -236,6 +345,10 @@ public class WebSocketClient {
         }
         if (client != null) {
             client.dispatcher().executorService().shutdown();
+        }
+        // 清理超时任务
+        if (timeoutHandler != null) {
+            timeoutHandler.removeCallbacksAndMessages(null);
         }
         isConnected = false;
         Log.d(TAG, "WebSocketClient shutdown");

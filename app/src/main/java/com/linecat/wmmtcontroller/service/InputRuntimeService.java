@@ -307,6 +307,10 @@ public class InputRuntimeService extends Service {
         // 设置布局引擎
         profileManager.setLayoutEngine(layoutEngine);
 
+        // 创建传输控制器
+        transportController = new TransportController(this, runtimeConfig);
+        transportController.init();
+        
         // 创建意图合成器
         IntentComposer intentComposer = new IntentComposer();
         
@@ -338,9 +342,6 @@ public class InputRuntimeService extends Service {
         eventNormalizer = new EventNormalizer();
         regionResolver = new RegionResolver(this);
 
-        // 创建传输控制器
-        transportController = new TransportController(this, runtimeConfig);
-        transportController.init();
 
         // 初始化各组件
         scriptEngine.init();

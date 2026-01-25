@@ -14,6 +14,11 @@ import java.util.ArrayList;
  */
 public class LayoutEngine {
     private static final String TAG = "LayoutEngine";
+    
+    // 用于控制日志打印频率的变量
+    private static long lastLayoutLogTime = 0;
+    private static final long LAYOUT_LOG_INTERVAL = 5000; // 5秒间隔
+    private static int layoutExecutionCount = 0;
 
     // 各层处理器
     private UILayerHandler uiLayerHandler;
@@ -125,16 +130,23 @@ public class LayoutEngine {
         inputState.setFrameId(frameId);
 
         // 1. UI 层处理：原始输入 → 抽象值
-        Log.d(TAG, "Executing UI layer");
         uiLayerHandler.process(rawInput, currentLayout, inputState);
 
         // 2. Operation 层处理：抽象控制语义
-        Log.d(TAG, "Executing Operation layer");
         operationLayerHandler.process(rawInput, currentLayout, inputState);
 
         // 3. Mapping 层处理：抽象语义 → 设备输出
-        Log.d(TAG, "Executing Mapping layer");
         mappingLayerHandler.process(rawInput, currentLayout, inputState);
+        
+        // 按时间间隔打印日志
+        layoutExecutionCount++;
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastLayoutLogTime >= LAYOUT_LOG_INTERVAL) {
+            Log.d(TAG, "Layout execution summary - Total executions in interval: " + layoutExecutionCount + ", frameId: " + frameId);
+            // 重置计数器
+            layoutExecutionCount = 0;
+            lastLayoutLogTime = currentTime;
+        }
 
         // 更新输出状态
         outputController.updateOutput(inputState);

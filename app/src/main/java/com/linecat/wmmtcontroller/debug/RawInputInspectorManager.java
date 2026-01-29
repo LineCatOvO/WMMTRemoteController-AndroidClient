@@ -25,7 +25,7 @@ public class RawInputInspectorManager {
     private WindowManager.LayoutParams mWindowParams;
     
     // 显示状态
-    private boolean isVisible = false;
+    private boolean isVisible = true;
     
     /**
      * 获取单例实例
@@ -44,6 +44,8 @@ public class RawInputInspectorManager {
         mContext = context;
         initWindowManager();
         initInspectorView();
+        // 默认显示原始输入检查View
+        show();
     }
     
     /**
@@ -139,6 +141,15 @@ public class RawInputInspectorManager {
     public void onTouchEnd() {
         if (mInspectorView != null) {
             mInspectorView.clearTouchData();
+        }
+    }
+    
+    /**
+     * 更新触摸数据
+     */
+    public void updateTouchData(float x, float y) {
+        if (mInspectorView != null) {
+            mInspectorView.updateTouchData(x, y);
         }
     }
     

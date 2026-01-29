@@ -672,42 +672,5 @@ public class RawInputInspectorView extends SurfaceView implements SurfaceHolder.
         }
     }
     
-    /**
-     * 绘制陀螺仪图标
-     */
-    private void drawGyroIcon(Canvas canvas, int width, int height) {
-        int iconSize = 80;
-        int iconX = width - 120;
-        int iconY = height - 120;
-        
-        // 绘制图标背景
-        mPaint.setColor(Color.argb(64, 0, 255, 255));
-        canvas.drawCircle(iconX, iconY, iconSize / 2, mPaint);
-        
-        // 绘制坐标轴
-        mPaint.setColor(Color.WHITE);
-        mPaint.setStrokeWidth(2);
-        
-        // X轴（红色）
-        mPaint.setColor(Color.RED);
-        canvas.drawLine(iconX - iconSize / 3, iconY, iconX + iconSize / 3, iconY, mPaint);
-        
-        // Y轴（绿色）
-        mPaint.setColor(Color.GREEN);
-        canvas.drawLine(iconX, iconY - iconSize / 3, iconX, iconY + iconSize / 3, mPaint);
-        
-        // Z轴（蓝色，虚线）
-        mPaint.setColor(Color.BLUE);
-        mPaint.setPathEffect(new android.graphics.DashPathEffect(new float[]{5, 5}, 0));
-        canvas.drawLine(iconX - iconSize / 4, iconY - iconSize / 4, iconX + iconSize / 4, iconY + iconSize / 4, mPaint);
-        mPaint.setPathEffect(null); // 重置为实线
-        
-        // 绘制旋转指示器
-        mPaint.setColor(Color.YELLOW);
-        mPaint.setStrokeWidth(3);
-        canvas.save();
-        canvas.rotate(currentRotation, iconX, iconY);
-        canvas.drawLine(iconX, iconY - iconSize / 3, iconX, iconY + iconSize / 3, mPaint);
-        canvas.restore();
-    }
+
 }

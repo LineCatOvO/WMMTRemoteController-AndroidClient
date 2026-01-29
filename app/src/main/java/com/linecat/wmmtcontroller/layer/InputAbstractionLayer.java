@@ -1,5 +1,8 @@
 package com.linecat.wmmtcontroller.layer;
 
+import android.content.Context;
+
+import com.linecat.wmmtcontroller.debug.RawInputInspectorManager;
 import com.linecat.wmmtcontroller.layer.PlatformAdaptationLayer.RawDropEvent;
 import com.linecat.wmmtcontroller.layer.PlatformAdaptationLayer.RawPointerEvent;
 import com.linecat.wmmtcontroller.layer.PlatformAdaptationLayer.RawSensorEvent;
@@ -33,6 +36,7 @@ public final class InputAbstractionLayer implements PlatformAdaptationLayer.RawE
     private final OutputSink sink;
     private final Map<Integer, PointerState> pointerStates;
     private final Set<Integer> changedIds;
+    private final RawInputInspectorManager inspectorManager;
     
     // 当前显示 metrics
     private int displayWidthPx;
@@ -58,9 +62,19 @@ public final class InputAbstractionLayer implements PlatformAdaptationLayer.RawE
      * @param sink 输出接收器
      */
     public InputAbstractionLayer(OutputSink sink) {
+        this(null, sink);
+    }
+    
+    /**
+     * 输入抽象层构造函数
+     * @param context 上下文
+     * @param sink 输出接收器
+     */
+    public InputAbstractionLayer(Context context, OutputSink sink) {
         this.sink = sink;
         this.pointerStates = new ConcurrentHashMap<>();
         this.changedIds = ConcurrentHashMap.newKeySet();
+        this.inspectorManager = context != null ? RawInputInspectorManager.getInstance(context) : null;
         
         // 初始化默认 metrics
         this.displayWidthPx = 1080;
@@ -119,6 +133,17 @@ public final class InputAbstractionLayer implements PlatformAdaptationLayer.RawE
                 break;
         }
         
+        // 更新原始输入检查器数据
+        if (inspectorManager != null && !e.pointers.isEmpty()) {
+            RawPointerEvent.Pointer pointer = e.pointers.get(0);
+            inspectorManager.onTouchEvent(null); // 这里需要实际的MotionEvent，后续优化
+            // 临时解决方案：直接更新坐标
+            for (RawPointerEvent.Pointer p : e.pointers) {
+                // 这里需要转换为实际的触摸事件，后续优化
+                inspectorManager.updateTouchData(p.x, p.y);
+            }
+        }
+        
         // 检查是否需要输出 PointerFrame
         if (e.action != RawPointerEvent.Action.MOVE || shouldOutputMove(timeNanos)) {
             outputPointerFrame(timeNanos);
@@ -145,6 +170,11 @@ public final class InputAbstractionLayer implements PlatformAdaptationLayer.RawE
             this.lastRollRate = rollRate;
             this.lastGyroAccuracy = e.accuracy;
             this.lastGyroTimeNs = e.timeNanos;
+            
+            // 更新原始输入检查器数据
+            if (inspectorManager != null) {
+                inspectorManager.updateGyroData(pitchRate, rollRate, yawRate);
+            }
             
             // 输出 GyroFrame
             outputGyroFrame(e.timeNanos);

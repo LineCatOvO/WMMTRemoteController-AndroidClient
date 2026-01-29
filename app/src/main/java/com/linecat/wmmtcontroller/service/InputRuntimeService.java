@@ -228,7 +228,7 @@ public class InputRuntimeService extends Service {
         uiInputLayer.init();
 
         // 创建平台适配层和输入抽象层
-        InputAbstractionLayer inputAbstractionLayer = new InputAbstractionLayer(new InputAbstractionLayer.OutputSink() {
+        InputAbstractionLayer inputAbstractionLayer = new InputAbstractionLayer(this, new InputAbstractionLayer.OutputSink() {
             @Override
             public void onPointerFrame(InputAbstractionLayer.PointerFrame frame) {
                 // 处理指针帧（根据需要实现）

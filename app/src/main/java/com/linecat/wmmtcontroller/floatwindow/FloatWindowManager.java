@@ -22,6 +22,7 @@ import com.linecat.wmmtcontroller.R;
 import com.linecat.wmmtcontroller.input.LayoutEngine;
 import com.linecat.wmmtcontroller.input.LayoutRenderer;
 import com.linecat.wmmtcontroller.input.LayoutSnapshot;
+import com.linecat.wmmtcontroller.debug.RawInputInspectorManager;
 import com.linecat.wmmtcontroller.model.ConnectionInfo;
 import com.linecat.wmmtcontroller.service.RuntimeConfig;
 import com.linecat.wmmtcontroller.service.RuntimeEvents;
@@ -131,6 +132,9 @@ public class FloatWindowManager {
         layoutEnabledCheckbox = floatView.findViewById(R.id.cb_layout_enabled);
         layoutsListView = floatView.findViewById(R.id.lv_layouts);
 
+        // 默认启用布局
+        layoutEnabledCheckbox.setChecked(true);
+
         // 初始化布局列表
         initLayoutsList();
 
@@ -232,10 +236,9 @@ public class FloatWindowManager {
         renderParams.copyFrom(windowParams);
         renderParams.width = WindowManager.LayoutParams.MATCH_PARENT;
         renderParams.height = WindowManager.LayoutParams.MATCH_PARENT;
-        // 初始时设置为不可见，不拦截任何触摸事件
+        // 初始时设置为可见，能够接收触摸事件（因为默认启用布局）
         renderParams.flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
                 | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
                 | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
                 | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
         renderParams.gravity = Gravity.TOP | Gravity.LEFT;
@@ -247,7 +250,7 @@ public class FloatWindowManager {
         }
 
         // 设置布局渲染器默认状态
-        layoutRenderer.setLayoutEnabled(false);
+        layoutRenderer.setLayoutEnabled(true);
     }
 
     /**
@@ -309,6 +312,14 @@ public class FloatWindowManager {
             Log.d(TAG, "Layout management button clicked");
             hidePopupMenu();
             showLayoutManagementPanel();
+        });
+        
+        // 原始输入检查按钮点击事件
+        floatView.findViewById(R.id.btn_raw_input_inspector).setOnClickListener(v -> {
+            Log.d(TAG, "Raw input inspector button clicked");
+            // 切换原始输入检查View的显示状态
+            RawInputInspectorManager.getInstance(context).toggle();
+            hidePopupMenu();
         });
 
         // 保存设置按钮点击事件
